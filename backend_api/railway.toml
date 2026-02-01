@@ -7,7 +7,7 @@ command = "npm install"
 
 [deploy]
 # 启动命令
-start = "node server.js"
+start = "node index.js"
 
 [env]
 # 环境变量配置
@@ -21,6 +21,7 @@ runtime = "nodejs"
 # Railway会自动检测以下文件：
 # - railway.toml (此配置文件)
 # - package.json (npm脚本)
-# - server.js (默认入口文件)
+# - index.js (入口文件)
+# - server.js (主服务器文件)
 
 # 如果Railway无法自动检测，可以使用此配置明确指定

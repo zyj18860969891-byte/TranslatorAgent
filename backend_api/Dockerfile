@@ -21,4 +21,4 @@ ENV NODE_ENV=production
 ENV PORT=8000
 
 # 启动应用
-CMD ["node", "server.js"]
+CMD ["node", "index.js"]
