@@ -1,0 +1,22 @@
+# Railway配置文件
+# 指定应用的启动命令和构建配置
+
+[build]
+# 构建命令
+command = "npm install"
+
+[deploy]
+# 启动命令
+start = "node server.js"
+
+[env]
+# 环境变量配置
+PORT = "8000"
+NODE_ENV = "production"
+
+# Railway会自动检测以下文件：
+# - railway.toml (此配置文件)
+# - package.json (npm脚本)
+# - server.js (默认入口文件)
+
+# 如果Railway无法自动检测，可以使用此配置明确指定
