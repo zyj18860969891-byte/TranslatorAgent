@@ -1,0 +1,25 @@
+# Nixpacks配置文件
+# 强制使用Node.js构建环境
+
+[phases]
+setup = [
+  "nixpkgs:nodejs_18",
+  "nixpkgs:npm"
+]
+
+build = [
+  "npm install"
+]
+
+start = [
+  "node index.js"
+]
+
+# 明确指定Node.js环境
+[env]
+NODE_ENV = "production"
+PORT = "8000"
+
+# 禁用Python检测
+[options]
+disable_python = true
