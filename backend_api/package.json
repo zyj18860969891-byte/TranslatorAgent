@@ -2,7 +2,7 @@
   "name": "translator-agent-backend",
   "version": "1.0.0",
   "description": "Translator Agent 后端 API 服务",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon server.js",

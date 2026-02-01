@@ -24,4 +24,7 @@ runtime = "nodejs"
 # - index.js (入口文件)
 # - server.js (主服务器文件)
 
+# 如果Railway仍然检测为Python项目，
+# 请在项目根目录添加index.js文件
+
 # 如果Railway无法自动检测，可以使用此配置明确指定
