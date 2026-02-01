@@ -1,0 +1,133 @@
+# Environment Variables - CRITICAL: Never commit API keys!
+.env
+.env.*
+*.env
+**/.env
+**/*.env
+
+# API Key Configuration Files - CRITICAL: Contains real API keys!
+*API_KEY*.md
+*API_KEY*.txt
+*API_KEY*.py
+*API_KEY*.bat
+*API_KEY*.ps1
+*API_CONFIG*.md
+*API_SETUP*.md
+*API_VERIFICATION*.md
+
+# Test files with hardcoded API keys
+test_api_connection.py
+working_test.py
+success_test.py
+simple_*_test.py
+simple_*_setup.py
+qwen3_*_test.py
+test_dashscope*.py
+test_qwen3*.py
+
+# Setup scripts with API keys
+setup_api_key.ps1
+setup_api_key.bat
+
+# Working files with API keys
+working_*.py
+
+# Virtual Environment
+.venv/
+venv/
+env/
+*.venv
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# NotebookLM Skill Data
+notebooklm-skill-master/data/
+notebooklm-skill-master/auth/
+notebooklm-skill-master/browser_state/
+
+# Claude-specific
+.claude/
+*.claude
+
+# SpecStory
+.specstory/
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# Pytype
+.pytype/
