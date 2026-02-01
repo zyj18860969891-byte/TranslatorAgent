@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  translator-agent:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: translator-agent
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MODELSCOPE_API_KEY=${MODELSCOPE_API_KEY}
+      - CACHE_SIZE=1000
+      - MAX_WORKERS=4
+    volumes:
+      - ./context_storage:/app/context_storage
+      - ./performance_storage:/app/performance_storage
+      - ./output:/app/output
+      - ./temp:/app/temp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 可选：添加Redis用于缓存和任务队列
+  redis:
+    image: redis:7-alpine
+    container_name: translator-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # 可选：添加Nginx作为反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: translator-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - translator-agent
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis_data:

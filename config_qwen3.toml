@@ -1,0 +1,5 @@
+[[llm.providers]]
+name = "aliyun-dashscope"
+base_url = "https://dashscope.aliyuncs.com/api/v1"
+api_key = "${DASHSCOPE_API_KEY}"
+model = "qwen3-omni-flash-realtime"

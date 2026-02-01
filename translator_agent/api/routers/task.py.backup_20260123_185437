@@ -1,0 +1,635 @@
+#!/usr/bin/env python3
+"""
+任务管理API路由
+
+提供任务管理相关的REST API接口
+"""
+
+import asyncio
+import logging
+import time
+import os
+import json
+from datetime import datetime
+from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form
+from fastapi.responses import JSONResponse, StreamingResponse
+from io import BytesIO
+
+from ..schemas import (
+    TaskInfo,
+    TaskStatus,
+    TaskStatusResponse,
+    TaskListResponse,
+    ErrorResponse
+)
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 创建路由
+router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+# 全局任务存储（实际应用中应该使用数据库或Redis）
+_tasks: Dict[str, TaskInfo] = {}
+
+# 文件存储目录
+FILE_STORAGE_DIR = "task_files"
+os.makedirs(FILE_STORAGE_DIR, exist_ok=True)
+
+
+@router.get("/health", response_model=dict)
+async def health_check():
+    """任务管理服务健康检查"""
+    return {
+        "status": "healthy",
+        "service": "task_management",
+        "timestamp": time.time()
+    }
+
+
+@router.post("", response_model=TaskStatusResponse)
+async def create_task(task_data: Dict[str, Any]):
+    """创建任务"""
+    task_id = task_data.get("task_id", f"task-{int(time.time() * 1000)}")
+    task_type = task_data.get("task_type", "translation")
+    status = task_data.get("status", "pending")
+    
+    task = TaskInfo(
+        task_id=task_id,
+        task_type=task_type,
+        status=TaskStatus(status),
+        created_at=datetime.fromtimestamp(time.time()),
+        updated_at=datetime.fromtimestamp(time.time()),
+        progress=0,
+        files=[],
+        memory={},
+        result=None,
+        error=None,
+        metadata=task_data.get("metadata", {})
+    )
+    
+    _tasks[task_id] = task
+    
+    logger.info(f"Task created: {task_id}")
+    # 返回符合TaskStatusResponse模型的格式
+    return TaskStatusResponse(success=True, task=task)
+
+
+@router.get("/{task_id}", response_model=TaskStatusResponse)
+async def get_task_status(task_id: str):
+    """获取任务状态"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    return TaskStatusResponse(success=True, task=_tasks[task_id])
+
+
+@router.get("", response_model=TaskListResponse)
+async def list_tasks(
+    status: Optional[TaskStatus] = Query(None, description="任务状态过滤"),
+    task_type: Optional[str] = Query(None, description="任务类型过滤"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量")
+):
+    """列出任务"""
+    tasks = list(_tasks.values())
+    
+    # 过滤
+    if status:
+        tasks = [t for t in tasks if t.status == status]
+    if task_type:
+        tasks = [t for t in tasks if t.task_type == task_type]
+    
+    # 排序（按创建时间倒序）
+    tasks.sort(key=lambda x: x.created_at, reverse=True)
+    
+    # 分页
+    total = len(tasks)
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    paginated_tasks = tasks[start_idx:end_idx]
+    
+    return TaskListResponse(
+        success=True,
+        tasks=paginated_tasks,
+        total=total,
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.post("/{task_id}/cancel")
+async def cancel_task(task_id: str):
+    """取消任务"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Task cannot be cancelled: current status is {task.status}"
+        )
+    
+    task.status = TaskStatus.CANCELLED
+    task.completed_at = datetime.fromtimestamp(time.time())
+    
+    logger.info(f"Task cancelled: {task_id}")
+    return {"success": True, "task_id": task_id, "status": "cancelled"}
+
+
+@router.delete("/{task_id}")
+async def delete_task(task_id: str):
+    """删除任务"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    # 只能删除已完成或失败的任务
+    if task.status not in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Task cannot be deleted: current status is {task.status}"
+        )
+    
+    del _tasks[task_id]
+    
+    logger.info(f"Task deleted: {task_id}")
+    return {"success": True, "task_id": task_id}
+
+
+@router.post("/{task_id}/files")
+async def upload_task_files(task_id: str, file_data: Dict[str, Any]):
+    """上传任务文件"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    file_path = file_data.get("file_path")
+    if not file_path:
+        raise HTTPException(status_code=400, detail="File path is required")
+    
+    # 添加文件到任务
+    task.files.append(file_path)
+    task.updated_at = datetime.fromtimestamp(time.time())
+    
+    logger.info(f"File uploaded to task {task_id}: {file_path}")
+    return {"success": True, "task_id": task_id, "file_path": file_path}
+
+
+@router.post("/{task_id}/files/upload")
+async def upload_file(task_id: str, file: UploadFile = File(...)):
+    """上传实际文件"""
+    # 确保文件参数被正确接收
+    try:
+        # 验证文件参数
+        if file is None:
+            # 尝试从请求体中获取文件信息（兼容性处理）
+            from starlette.requests import Request
+            # 这里添加一个更宽松的检查，防止参数解析失败
+            logger.warning("File parameter is None, attempting fallback handling")
+            raise HTTPException(status_code=422, detail="No file provided")
+        
+        # 验证文件名
+        if not file.filename:
+            logger.error("No filename provided")
+            raise HTTPException(status_code=422, detail="No filename provided")
+        
+        if task_id not in _tasks:
+            raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+        
+        task = _tasks[task_id]
+        
+        # 生成文件存储路径
+        file_extension = os.path.splitext(file.filename)[1]
+        file_storage_path = os.path.join(FILE_STORAGE_DIR, f"{task_id}_{file.filename}")
+        
+        # 保存文件
+        try:
+            content = await file.read()
+            with open(file_storage_path, "wb") as f:
+                f.write(content)
+            
+            # 添加文件到任务
+            task.files.append(file_storage_path)
+            task.updated_at = datetime.fromtimestamp(time.time())
+            
+            logger.info(f"File uploaded to task {task_id}: {file_storage_path}")
+            return {"success": True, "task_id": task_id, "file_path": file_storage_path, "filename": file.filename}
+        except Exception as e:
+            logger.error(f"Failed to upload file: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error in upload_file: {e}")
+        # 更详细的错误信息
+        error_msg = str(e)
+        if "Expected UploadFile" in error_msg:
+            logger.error("This is likely a FastAPI parameter parsing issue")
+        raise HTTPException(status_code=422, detail=f"Upload failed: {error_msg}")
+
+
+@router.post("/{task_id}/progress")
+async def update_task_progress(task_id: str, progress_data: Dict[str, Any]):
+    """更新任务进度"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    progress = progress_data.get("progress")
+    if progress is None:
+        raise HTTPException(status_code=400, detail="Progress is required")
+    
+    task.progress = progress
+    task.updated_at = datetime.fromtimestamp(time.time())
+    
+    logger.info(f"Progress updated for task {task_id}: {progress}%")
+    return {"success": True, "task_id": task_id, "progress": progress}
+
+
+@router.post("/{task_id}/status")
+async def update_task_status(task_id: str, status_data: Dict[str, Any]):
+    """更新任务状态"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    # 优先从status_data中获取status字段
+    status = status_data.get("status")
+    
+    # 如果status字段不存在，尝试从其他可能的字段获取
+    if status is None:
+        # 检查是否有其他可能的状态字段
+        possible_status_fields = ["status", "task_status", "new_status", "status_value"]
+        for field in possible_status_fields:
+            status = status_data.get(field)
+            if status is not None:
+                break
+    
+    # 如果仍然没有找到状态，尝试从updates参数中获取
+    if status is None and "updates" in status_data:
+        updates = status_data["updates"]
+        if isinstance(updates, dict):
+            status = updates.get("status")
+    
+    if status is None:
+        # 如果没有提供状态，不更新状态，只返回当前状态
+        logger.info(f"Status update requested but no status provided for task {task_id}, returning current status")
+        return {"success": True, "task_id": task_id, "status": task.status.value}
+    
+    try:
+        task.status = TaskStatus(status)
+        task.updated_at = datetime.fromtimestamp(time.time())
+        
+        if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+            task.completed_at = datetime.fromtimestamp(time.time())
+        
+        logger.info(f"Status updated for task {task_id}: {status}")
+        return {"success": True, "task_id": task_id, "status": status}
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+
+
+@router.post("/{task_id}/memory")
+async def update_task_memory(task_id: str, memory_data: Dict[str, Any]):
+    """更新任务内存"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    memory_key = memory_data.get("memory_key")
+    memory_value = memory_data.get("memory_value")
+    
+    if memory_key is None or memory_value is None:
+        raise HTTPException(status_code=400, detail="Memory key and value are required")
+    
+    task.memory[memory_key] = memory_value
+    task.updated_at = datetime.fromtimestamp(time.time())
+    
+    logger.info(f"Memory updated for task {task_id}: {memory_key} = {memory_value}")
+    return {"success": True, "task_id": task_id, "memory_key": memory_key, "memory_value": memory_value}
+
+
+@router.get("/stats/summary")
+async def get_stats_summary():
+    """获取任务统计摘要"""
+    total_tasks = len(_tasks)
+    
+    stats = {
+        "total": total_tasks,
+        "by_status": {},
+        "by_type": {},
+        "recent": []
+    }
+    
+    # 按状态统计
+    for task in _tasks.values():
+        status = task.status.value
+        stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
+        
+        task_type = task.task_type
+        stats["by_type"][task_type] = stats["by_type"].get(task_type, 0) + 1
+    
+    # 最近的任务（最近10个）
+    recent_tasks = sorted(_tasks.values(), key=lambda x: x.created_at, reverse=True)[:10]
+    stats["recent"] = [
+        {
+            "task_id": t.task_id,
+            "task_type": t.task_type,
+            "status": t.status.value,
+            "created_at": t.created_at
+        }
+        for t in recent_tasks
+    ]
+    
+    return {"success": True, "stats": stats}
+
+
+@router.post("/cleanup")
+async def cleanup_tasks(
+    keep_completed: bool = Query(True, description="是否保留已完成的任务"),
+    keep_failed: bool = Query(True, description="是否保留失败的任务"),
+    keep_cancelled: bool = Query(False, description="是否保留已取消的任务"),
+    max_age_hours: Optional[float] = Query(None, description="最大保留时间（小时）")
+):
+    """清理旧任务"""
+    current_time = time.time()
+    deleted_count = 0
+    
+    tasks_to_delete = []
+    
+    for task_id, task in _tasks.items():
+        should_delete = False
+        
+        # 根据状态决定是否删除
+        if not keep_completed and task.status == TaskStatus.COMPLETED:
+            should_delete = True
+        elif not keep_failed and task.status == TaskStatus.FAILED:
+            should_delete = True
+        elif not keep_cancelled and task.status == TaskStatus.CANCELLED:
+            should_delete = True
+        
+        # 根据年龄决定是否删除
+        if max_age_hours and task.completed_at:
+            age_hours = (current_time - task.completed_at) / 3600
+            if age_hours > max_age_hours:
+                should_delete = True
+        
+        if should_delete:
+            tasks_to_delete.append(task_id)
+    
+    # 删除任务
+    for task_id in tasks_to_delete:
+        del _tasks[task_id]
+        deleted_count += 1
+    
+    logger.info(f"Cleaned up {deleted_count} tasks")
+    return {
+        "success": True,
+        "deleted_count": deleted_count,
+        "remaining_count": len(_tasks)
+    }
+
+
+@router.options("/{task_id}/files/{file_name}")
+async def download_task_file_options(task_id: str, file_name: str):
+    """处理文件下载的预检请求"""
+    return {
+        "success": True,
+        "message": "CORS preflight request allowed"
+    }
+
+
+@router.get("/{task_id}/files/{file_name}")
+async def download_task_file(task_id: str, file_name: str):
+    """下载任务文件"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    # 检查文件是否在任务的文件列表中
+    file_path = None
+    
+    # 调试信息
+    logger.info(f"Download request for task {task_id}, file {file_name}")
+    logger.info(f"Task files: {task.files}")
+    
+    # 首先尝试精确匹配（完整路径或文件名）
+    for f in task.files:
+        # 完全匹配
+        if f == file_name:
+            file_path = f
+            logger.info(f"Found exact match: {f}")
+            break
+        # 文件名匹配
+        if os.path.basename(f) == file_name:
+            file_path = f
+            logger.info(f"Found basename match: {f}")
+            break
+    
+    # 如果没有找到，尝试模糊匹配（包含关系）
+    if not file_path:
+        for f in task.files:
+            if file_name in f or f in file_name:
+                file_path = f
+                logger.info(f"Found fuzzy match: {f}")
+                break
+    
+    # 如果还是没有找到，尝试URL解码和路径分隔符处理
+    if not file_path:
+        import urllib.parse
+        decoded_file_name = urllib.parse.unquote(file_name)
+        for f in task.files:
+            if decoded_file_name in f or f in decoded_file_name:
+                file_path = f
+                logger.info(f"Found URL decoded match: {f}")
+                break
+    
+    # 如果还是没有找到，检查是否是文件名（去除可能的路径前缀）
+    if not file_path:
+        for f in task.files:
+            # 获取文件名部分
+            basename = os.path.basename(f)
+            if basename == file_name:
+                file_path = f
+                logger.info(f"Found basename match: {f}")
+                break
+            # 检查是否是文件名的一部分
+            if file_name in basename or basename in file_name:
+                file_path = f
+                logger.info(f"Found basename fuzzy match: {f}")
+                break
+    
+    # 如果还是没有找到，尝试URL解码后的精确匹配
+    if not file_path:
+        import urllib.parse
+        decoded_file_name = urllib.parse.unquote(file_name)
+        for f in task.files:
+            basename = os.path.basename(f)
+            if basename == decoded_file_name:
+                file_path = f
+                logger.info(f"Found URL decoded basename match: {f}")
+                break
+    
+    if not file_path:
+        raise HTTPException(status_code=404, detail=f"File not found in task: {file_name}")
+    
+    # 检查文件是否存在（实际应用中应该检查真实文件系统）
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    
+    # 如果文件路径是本地文件路径
+    if os.path.exists(file_path):
+        from fastapi.responses import StreamingResponse
+        import mimetypes
+        
+        # 获取文件的 MIME 类型
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if mime_type is None:
+            mime_type = "application/octet-stream"
+        
+        # 读取文件内容并返回 StreamingResponse
+        with open(file_path, "rb") as file:
+            file_content = file.read()
+        
+        from urllib.parse import quote
+        filename = os.path.basename(file_path)
+        encoded_filename = quote(filename, encoding='utf-8')
+        
+        return StreamingResponse(
+            BytesIO(file_content),
+            media_type=mime_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{encoded_filename}"',
+                "Content-Length": str(len(file_content)),
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+    
+    # 如果文件路径是URL，返回URL供前端下载
+    elif file_path.startswith(('http://', 'https://')):
+        return {
+            "success": True,
+            "file_url": file_path,
+            "filename": os.path.basename(file_path),
+            "message": "File URL provided for download"
+        }
+    
+    # 如果文件不存在，返回模拟的文件数据
+    else:
+        from fastapi.responses import StreamingResponse
+        from io import BytesIO
+        
+        # 创建模拟的文件内容
+        # 检查文件类型
+        if file_path.endswith(('.mp4', '.avi', '.mov', '.mkv', '.wmv')):
+            # 模拟视频文件数据
+            mock_video_data = b"SIMULATED_VIDEO_FILE_CONTENT"
+            media_type = "video/mp4"
+        elif file_path.endswith(('.srt', '.vtt', '.ass', '.txt')):
+            # 模拟字幕文件数据（使用ASCII字符）
+            mock_video_data = b"1\n00:00:00,500 --> 00:00:05,000\nTest subtitle content\n"
+            media_type = "text/plain"
+        else:
+            # 其他文件类型
+            mock_video_data = f"Simulated file content: {file_path}".encode('utf-8')
+            media_type = "application/octet-stream"
+        
+        from urllib.parse import quote
+        
+        # 处理文件名编码，支持中文
+        filename = os.path.basename(file_path)
+        encoded_filename = quote(filename, encoding='utf-8')
+        
+        return StreamingResponse(
+            BytesIO(mock_video_data),
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{encoded_filename}"',
+                "Content-Length": str(len(mock_video_data)),
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+
+
+@router.post("/{task_id}/files/upload")
+async def upload_task_file(task_id: str, file: UploadFile = File(...)):
+    """上传文件到任务"""
+    logger.info(f"Upload request received for task {task_id}")
+    logger.info(f"File info: name={file.filename}, content_type={file.content_type}, type: {type(file)}")
+    
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    # 创建文件存储目录
+    task_dir = os.path.join(FILE_STORAGE_DIR, task_id)
+    os.makedirs(task_dir, exist_ok=True)
+    
+    # 生成文件路径
+    file_path = os.path.join(task_dir, file.filename)
+    
+    # 保存文件
+    try:
+        content = await file.read()
+        logger.info(f"File content length: {len(content)} bytes")
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
+        
+        # 将文件路径添加到任务中
+        task.files.append(file_path)
+        task.updated_at = datetime.now().isoformat()
+        
+        logger.info(f"File uploaded to task {task_id}: {file.filename}")
+        logger.info(f"File saved to: {file_path}")
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "file_name": file.filename,
+            "file_path": file_path,
+            "size": len(content),
+            "message": "File uploaded successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to upload file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+
+@router.get("/{task_id}/files")
+async def list_task_files(task_id: str):
+    """获取任务文件列表"""
+    if task_id not in _tasks:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+    
+    task = _tasks[task_id]
+    
+    # 返回文件列表，包含文件信息
+    files_info = []
+    for file_path in task.files:
+        import os
+        files_info.append({
+            "path": file_path,
+            "name": os.path.basename(file_path),
+            "size": 0,  # 实际应用中应该获取真实文件大小
+            "type": "video" if file_path.endswith(('.mp4', '.avi', '.mov', '.mkv')) else "subtitle" if file_path.endswith(('.srt', '.vtt', '.ass')) else "other"
+        })
+    
+    return {
+        "success": True,
+        "task_id": task_id,
+        "files": files_info,
+        "total": len(files_info)
+    }

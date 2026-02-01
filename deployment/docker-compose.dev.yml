@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  translator-agent:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: translator-agent-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MODELSCOPE_API_KEY=${MODELSCOPE_API_KEY}
+      - CACHE_SIZE=1000
+      - MAX_WORKERS=2
+      - DEBUG=true
+    volumes:
+      - ./context_storage:/app/context_storage
+      - ./performance_storage:/app/performance_storage
+      - ./output:/app/output
+      - ./temp:/app/temp
+      - ../translator_agent:/app/translator_agent
+      - ../run_api.py:/app/run_api.py
+      - ../test_api.py:/app/test_api.py
+    restart: unless-stopped
+    command: python run_api.py --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 开发工具：添加Redis用于缓存和任务队列
+  redis:
+    image: redis:7-alpine
+    container_name: translator-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # 开发工具：添加Redis Commander用于Redis管理
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: translator-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # 开发工具：添加Portainer用于容器管理
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: translator-portainer
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: unless-stopped
+
+volumes:
+  redis_data_dev:
+  portainer_data:
