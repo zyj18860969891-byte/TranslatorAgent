@@ -1,0 +1,14 @@
+{
+  "builder": "RAILPACK",
+  "build": {
+    "command": "npm install",
+    "startCommand": "node index.js"
+  },
+  "deploy": {
+    "startCommand": "node index.js"
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "8000"
+  }
+}
