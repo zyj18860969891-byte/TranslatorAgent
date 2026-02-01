@@ -10,5 +10,6 @@
   "env": {
     "NODE_ENV": "production",
     "PORT": "8000"
-  }
+  },
+  "rootDirectory": "backend_api"
 }
