@@ -36,11 +36,11 @@ export const TranslatorDashboard: React.FC = () => {
         target_language: targetLang,
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!response.success) {
+        throw new Error(`Translation failed: ${response.error}`);
       }
       
-      const data = await response.json();
+      const data = response.data;
       setResult({
         original: inputText,
         translated: data.translated_text,

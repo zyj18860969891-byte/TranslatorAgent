@@ -123,10 +123,10 @@ export const RealTimeProgressMonitor: React.FC<RealTimeProgressMonitorProps> = (
     // 立即加载一次
     loadTaskState();
 
-    // 设置轮询间隔（每2秒检查一次）
+    // 设置轮询间隔（每15秒检查一次，避免API限流）
     const interval = setInterval(() => {
       loadTaskState();
-    }, 2000);
+    }, 15000);
 
     return () => {
       if (interval) {

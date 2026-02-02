@@ -455,7 +455,7 @@ export class APIClient {
     }
   }
 
-  private async post(endpoint: string, data: any, options: RequestInit = {}): Promise<ApiResponse<any>> {
+  public async post(endpoint: string, data: any, options: RequestInit = {}): Promise<ApiResponse<any>> {
     const isFormData = data instanceof FormData;
     const body = isFormData ? data : JSON.stringify(data);
     

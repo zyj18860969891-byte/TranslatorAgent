@@ -10,11 +10,13 @@ export class ApiFileSystemStateMachine {
   
   // 轮询节流机制
   private lastApiCallTime: Record<string, number> = {}; // taskId -> timestamp
-  private apiCallInterval: number = 3000; // 增加到3秒最小间隔
+  private apiCallInterval: number = 10000; // 增加到10秒最小间隔
   private fallbackToLocalTime: Record<string, number> = {}; // taskId -> fallback timestamp
-  private fallbackToLocalTimeout: number = 15000; // 增加到15秒后回退到本地存储
+  private fallbackToLocalTimeout: number = 30000; // 增加到30秒后回退到本地存储
   private consecutiveFailures: Record<string, number> = {}; // taskId -> failure count
   private maxConsecutiveFailures: number = 3; // 最大连续失败次数
+  private globalLastApiCallTime: number = 0; // 全局API调用时间，用于全局限流
+  private globalApiCallInterval: number = 5000; // 全局最小间隔5秒
 
   constructor() {
     const config = getApiConfig();
@@ -201,14 +203,33 @@ export class ApiFileSystemStateMachine {
     return initialState;
   }
 
-  // 更新任务状态（优先使用后端API）
+  // 更新任务状态（优先使用后端API，带限流）
   async updateTaskState(
     taskId: string,
     module: string,
     updates: Partial<TaskState>
   ): Promise<TaskState> {
+    const now = Date.now();
+    
+    // 全局限流检查
+    const globalTimeSinceLastCall = now - this.globalLastApiCallTime;
+    if (globalTimeSinceLastCall < this.globalApiCallInterval) {
+      console.log(`[API-FSM] Global rate limit active for update, using localStorage fallback`);
+      return await this.updateTaskStateLocal(taskId, module, updates);
+    }
+    
+    // 任务级别限流检查
+    const lastCall = this.lastApiCallTime[taskId] || 0;
+    const timeSinceLastCall = now - lastCall;
+    if (timeSinceLastCall < this.apiCallInterval) {
+      console.log(`[API-FSM] Update API call too frequent for ${taskId}, using localStorage fallback`);
+      return await this.updateTaskStateLocal(taskId, module, updates);
+    }
+    
     try {
       // 尝试使用后端API更新任务
+      this.lastApiCallTime[taskId] = now;
+      this.globalLastApiCallTime = now;
       const apiResponse = await apiClient.updateTaskStatus(taskId, module, updates);
       
       if (apiResponse.success) {
@@ -282,6 +303,14 @@ export class ApiFileSystemStateMachine {
   // 读取任务状态（优先使用后端API，带轮询节流）
   async readTaskState(taskId: string, module: string): Promise<TaskState> {
     const now = Date.now();
+    
+    // 全局限流：防止所有任务同时调用API
+    const globalTimeSinceLastCall = now - this.globalLastApiCallTime;
+    if (globalTimeSinceLastCall < this.globalApiCallInterval) {
+      console.log(`[API-FSM] Global rate limit active, using localStorage fallback`);
+      return await this.readTaskStateLocal(taskId, module);
+    }
+    
     const lastCall = this.lastApiCallTime[taskId] || 0;
     const timeSinceLastCall = now - lastCall;
     
@@ -308,6 +337,7 @@ export class ApiFileSystemStateMachine {
     try {
       // 尝试使用后端API读取任务
       this.lastApiCallTime[taskId] = now; // 记录调用时间
+      this.globalLastApiCallTime = now; // 更新全局调用时间
       const apiResponse = await apiClient.getTaskStatus(taskId);
       
       if (apiResponse.success && apiResponse.data) {
