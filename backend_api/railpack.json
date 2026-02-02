@@ -6,10 +6,10 @@
   },
   "steps": {
     "install": {
-      "commands": ["cd backend_api && npm install"]
+      "commands": ["npm install"]
     }
   },
   "deploy": {
-    "startCommand": "cd backend_api && node index.js"
+    "startCommand": "node index.js"
   }
 }
