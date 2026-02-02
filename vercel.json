@@ -2,17 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "package.json",
+      "src": "frontend_reconstruction/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"
+        "distDir": "frontend_reconstruction/dist"
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/frontend_reconstruction/index.html"
     }
   ],
   "env": {
