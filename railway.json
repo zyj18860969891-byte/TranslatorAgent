@@ -1,0 +1,14 @@
+{
+  "builder": "RAILPACK",
+  "build": {
+    "command": "cd backend_api && npm install",
+    "startCommand": "cd backend_api && node index.js"
+  },
+  "deploy": {
+    "startCommand": "cd backend_api && node index.js"
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "8000"
+  }
+}
