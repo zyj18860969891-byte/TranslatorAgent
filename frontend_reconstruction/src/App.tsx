@@ -16,6 +16,7 @@ import { MicroserviceIntegrationPage } from './pages/MicroserviceIntegrationPage
 import { ApiIntegrationPage } from './pages/ApiIntegrationPage'
 import { LogPage } from './pages/LogPage'
 import { getPerformanceMonitor } from './utils/PerformanceMonitor'
+import { TaskIsolationManager } from './components/TaskIsolationManager'
 
 const App: React.FC = () => {
   const [selectedFeature, setSelectedFeature] = useState('video-translate')
@@ -316,7 +317,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <TaskIsolationManager>
+      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* 主内容区域 */}
       <div className="flex-1 h-screen">
         {/* 顶部导航 */}
@@ -509,6 +511,7 @@ const App: React.FC = () => {
       
       <Toaster />
     </div>
+    </TaskIsolationManager>
   )
 }
 
