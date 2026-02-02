@@ -16,5 +16,5 @@ COPY backend_api/ ./
 # 暴露端口
 EXPOSE 8000
 
-# 启动应用
+# 启动应用 - 使用index.js作为入口点
 CMD ["node", "index.js"]

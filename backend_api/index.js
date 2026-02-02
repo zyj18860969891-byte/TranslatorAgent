@@ -4,13 +4,14 @@
 // 导入主服务器
 const app = require('./server.js');
 
-// 启动服务器
-const PORT = process.env.PORT || 8000;
-
-app.listen(PORT, () => {
-  console.log(`TranslatorAgent Backend API running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// 如果直接运行此文件，则启动服务器
+if (require.main === module) {
+  const PORT = process.env.PORT || 8000;
+  app.listen(PORT, () => {
+    console.log(`TranslatorAgent Backend API running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
 
 // 导出app供测试使用
 module.exports = app;
