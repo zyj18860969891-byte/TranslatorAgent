@@ -1,7 +1,7 @@
 {
-  "builder": "RAILPACK",
+  "builder": "DOCKERFILE",
   "build": {
-    "command": "cd backend_api && npm install"
+    "dockerfilePath": "Dockerfile"
   },
   "deploy": {
     "command": "cd backend_api && node index.js"
@@ -9,6 +9,5 @@
   "env": {
     "NODE_ENV": "production",
     "PORT": "8000"
-  },
-  "nodeVersion": "20"
+  }
 }
