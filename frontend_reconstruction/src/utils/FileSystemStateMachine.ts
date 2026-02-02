@@ -185,7 +185,7 @@ export class FileSystemStateMachine {
     taskId: string,
     module: string,
     filePath: string,
-    status: 'uploaded' | 'processed' | 'failed'
+    _status: 'uploaded' | 'processed' | 'failed'
   ): Promise<TaskState> {
     const currentState = await this.readTaskState(taskId, module);
     

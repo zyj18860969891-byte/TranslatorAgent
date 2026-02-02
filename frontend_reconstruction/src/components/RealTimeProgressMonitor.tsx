@@ -138,15 +138,15 @@ export const RealTimeProgressMonitor: React.FC<RealTimeProgressMonitorProps> = (
   // 获取状态图标
   const getStatusIcon = (status: TaskStatus) => {
     switch (status) {
-      case TaskStatus.SUCCESS:
+      case TaskStatus.COMPLETED:
         return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-      case TaskStatus.IN_PROGRESS:
+      case TaskStatus.PROCESSING:
         return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
-      case TaskStatus.ERROR:
+      case TaskStatus.FAILED:
         return <AlertCircle className="w-5 h-5 text-red-500" />;
       case TaskStatus.PENDING:
         return <Clock className="w-5 h-5 text-yellow-500" />;
-      case TaskStatus.PAUSED:
+      case TaskStatus.CANCELLED:
         return <Activity className="w-5 h-5 text-gray-500" />;
       default:
         return <Activity className="w-5 h-5 text-gray-500" />;
@@ -156,16 +156,16 @@ export const RealTimeProgressMonitor: React.FC<RealTimeProgressMonitorProps> = (
   // 获取状态文本
   const getStatusText = (status: TaskStatus) => {
     switch (status) {
-      case TaskStatus.SUCCESS:
+      case TaskStatus.COMPLETED:
         return '完成';
-      case TaskStatus.IN_PROGRESS:
+      case TaskStatus.PROCESSING:
         return '处理中';
-      case TaskStatus.ERROR:
+      case TaskStatus.FAILED:
         return '错误';
       case TaskStatus.PENDING:
         return '待处理';
-      case TaskStatus.PAUSED:
-        return '已暂停';
+      case TaskStatus.CANCELLED:
+        return '已取消';
       default:
         return '未知';
     }
@@ -284,19 +284,19 @@ export const RealTimeProgressMonitor: React.FC<RealTimeProgressMonitorProps> = (
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded">
               <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                {taskState.files.uploaded?.length || 0}
+                0
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">已上传</div>
             </div>
             <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded">
               <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                {taskState.files.processed?.length || 0}
+                0
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">已处理</div>
             </div>
             <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded">
               <div className="text-lg font-bold text-red-600 dark:text-red-400">
-                {taskState.files.failed?.length || 0}
+                0
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">失败</div>
             </div>

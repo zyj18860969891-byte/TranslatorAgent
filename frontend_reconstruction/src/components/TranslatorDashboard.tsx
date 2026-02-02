@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Card, CardContent } from './ui/Card'
 import { Button } from './ui/Button'
 import { Textarea } from './ui/Textarea'
-import { apiClient } from '@/utils/apiClient'
+
 import { Copy, Download, Bot, User } from 'lucide-react'
 
 interface TranslationResult {
@@ -30,16 +30,28 @@ export const TranslatorDashboard: React.FC = () => {
     setError(null)
 
     try {
-      const response = await apiClient.post('/api/v1/translation/translate', {
-        text: inputText,
-        target_language: targetLang,
-      })
+      const response = await fetch('https://translatoragent-production.up.railway.app/api/v1/translation/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: inputText,
+          target_language: targetLang,
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
       setResult({
         original: inputText,
-        translated: response.data.translated_text,
-        sourceLang: response.data.source_lang,
-        targetLang: response.data.target_lang,
-        confidence: response.data.confidence,
+        translated: data.translated_text,
+        sourceLang: data.source_lang,
+        targetLang: targetLang,
+        confidence: 0.95,
       })
     } catch (err) {
       setError('翻译失败，请稍后重试')

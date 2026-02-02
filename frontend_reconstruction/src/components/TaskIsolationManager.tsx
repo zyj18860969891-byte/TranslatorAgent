@@ -9,7 +9,7 @@ import {
   Loader2,
   EyeOff
 } from 'lucide-react';
-import { FileSystemStateMachine, TaskStatus } from '../utils/FileSystemStateMachine';
+import { TaskStatus } from '../utils/FileSystemStateMachine';
 import { ApiFileSystemStateMachine, apiFsm } from '../utils/ApiFileSystemStateMachine';
 import { observationMask } from '../utils/ObservationMask';
 
@@ -273,7 +273,7 @@ export const ModularTaskList: React.FC<{ module: string }> = ({ module }) => {
           createdAt: new Date(task.createdAt).toLocaleString('zh-CN'),
           progress: task.progress.percentage,
           result: task.status === TaskStatus.COMPLETED ? '处理完成' : undefined,
-          error: task.status === TaskStatus.ERROR ? task.error : undefined
+          error: task.status === TaskStatus.FAILED ? task.error : undefined
         }));
 
         setTasks(formattedTasks);

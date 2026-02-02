@@ -170,13 +170,35 @@ export interface TaskCreationRequest {
 
 export interface TaskCreationResponse {
   taskId: string;
+  id?: string;
+  module?: string;
+  taskType?: string;
+  task_type?: string;
   status: 'created' | 'queued' | 'processing' | 'completed' | 'failed';
-  workspace: string;
+  workspace?: string;
+  progress?: {
+    current: number;
+    total: number;
+    percentage: number;
+    message: string;
+  };
+  memory?: {
+    conversationHistory: any[];
+    processingResults: any[];
+    intermediateData: any[];
+  };
+  files?: string[];
   createdAt: string;
+  created_at?: string;
+  updatedAt?: string;
+  updated_at?: string;
+  completedAt?: string;
+  error?: string;
 }
 
 export interface TaskStatusResponse {
   taskId: string;
+  id?: string;
   status: 'created' | 'queued' | 'processing' | 'completed' | 'failed';
   progress: number;
   message: string;
@@ -187,7 +209,9 @@ export interface TaskStatusResponse {
     intermediateData: any[];
   };
   createdAt: string;
+  created_at?: string;
   updatedAt: string;
+  updated_at?: string;
   completedAt?: string;
   error?: string;
 }
@@ -260,7 +284,7 @@ export class APIClient {
   }
 
   // 更新任务状态
-  async updateTaskStatus(taskId: string, module: string, updates: any): Promise<ApiResponse<any>> {
+  async updateTaskStatus(taskId: string, _module: string, updates: any): Promise<ApiResponse<any>> {
     return this.post(`/tasks/${taskId}/status`, updates);
   }
 

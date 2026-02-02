@@ -20,7 +20,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { TaskFileArea, TaskFile } from '../components/TaskFileArea';
 import { 
-  TaskIsolationManager,
+
   useTaskIsolation, 
   TaskIsolationIndicator,
   ModularTaskList
@@ -114,7 +114,7 @@ const MODULE_CONFIG = {
 
 // 内部组件（实际实现）
 const ConversationalDetailPageInner: React.FC = () => {
-  const [currentModule, setCurrentModule] = useState<string>('video-translate');
+  const [currentModule, _setCurrentModule] = useState<string>('video-translate');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<FileItem[]>([]);
@@ -198,18 +198,6 @@ const ConversationalDetailPageInner: React.FC = () => {
       content,
       timestamp: new Date().toISOString(),
       files
-    };
-    setMessages(prev => [...prev, message]);
-  }, []);
-
-  // 添加助手消息
-  const addAssistantMessage = useCallback((content: string, progress?: ProgressInfo) => {
-    const message: ChatMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      role: 'assistant',
-      content,
-      timestamp: new Date().toISOString(),
-      progress
     };
     setMessages(prev => [...prev, message]);
   }, []);
@@ -343,7 +331,7 @@ const ConversationalDetailPageInner: React.FC = () => {
       // 步骤1: 更新任务状态为处理中
       if (apiFsmInstance && currentTaskId) {
         await apiFsmInstance.updateTaskState(currentTaskId, currentModule, {
-          status: TaskStatus.IN_PROGRESS
+          status: TaskStatus.PROCESSING
         });
       }
 
@@ -438,7 +426,7 @@ const ConversationalDetailPageInner: React.FC = () => {
       // 更新任务状态为完成
       if (apiFsmInstance && currentTaskId) {
         await apiFsmInstance.updateTaskState(currentTaskId, currentModule, {
-          status: TaskStatus.SUCCESS,
+          status: TaskStatus.COMPLETED,
           progress: {
             current: 100,
             total: 100,
@@ -507,9 +495,9 @@ const ConversationalDetailPageInner: React.FC = () => {
           files: taskState.files,
           filesType: typeof taskState.files,
           isArray: Array.isArray(taskState.files),
-          uploaded: taskState.files?.uploaded,
-          processed: taskState.files?.processed,
-          failed: taskState.files?.failed
+          uploaded: [],
+          processed: [],
+          failed: []
         });
         return;
       }
@@ -644,14 +632,6 @@ const ConversationalDetailPageInner: React.FC = () => {
       addSystemMessage('❌ 文件下载失败');
     }
   }, [currentTaskId, currentModule, apiFsmInstance, addSystemMessage]);
-
-  // 切换模块
-  const handleModuleSwitch = useCallback((module: string) => {
-    setCurrentModule(module);
-    setMessages([]);
-    setUploadedFiles([]);
-    addSystemMessage(`已切换到 ${MODULE_CONFIG[module as keyof typeof MODULE_CONFIG].name}`);
-  }, []);
 
   const moduleConfig = MODULE_CONFIG[currentModule as keyof typeof MODULE_CONFIG];
 
@@ -896,18 +876,8 @@ const ConversationalDetailPageInner: React.FC = () => {
       )}
 
       {/* 上下文污染防护 */}
-
     </div>
   );
 };
 
-// 导出组件（被 TaskIsolationManager 包裹）
-const ConversationalDetailPage: React.FC = () => {
-  return (
-    <TaskIsolationManager>
-      <ConversationalDetailPageInner />
-    </TaskIsolationManager>
-  );
-};
-
-export default ConversationalDetailPage;
+export default ConversationalDetailPageInner;

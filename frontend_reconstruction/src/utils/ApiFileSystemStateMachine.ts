@@ -108,21 +108,21 @@ export class ApiFileSystemStateMachine {
         console.log('[API-FSM] API Response data:', backendTask);
         
         // 后端返回的是 {success: true, task: {...}} 格式
-        const taskData = backendTask.task || backendTask;
-        const backendTaskId = taskData.taskId || taskData.task_id;
+        const taskData = backendTask;
+        const backendTaskId = taskData.taskId || taskData.id || taskId;
         
         console.log(`[API-FSM] Created task via API: ${backendTaskId} in module ${module}`);
         
         // 创建基于后端响应的状态
         const initialState: TaskState = {
           taskId: backendTaskId,
-          module: backendTask.taskType || backendTask.task_type || module,
+          module: backendTask.module || backendTask.taskType || backendTask.task_type || module,
           status: this.mapBackendStatus(backendTask.status),
           progress: {
-            current: backendTask.progress || 0,
-            total: 100,
-            percentage: backendTask.progress || 0,
-            message: '任务已创建，等待处理',
+            current: backendTask.progress?.current || 0,
+            total: backendTask.progress?.total || 100,
+            percentage: backendTask.progress?.percentage || 0,
+            message: backendTask.progress?.message || '任务已创建，等待处理',
             timestamp: new Date().toISOString()
           },
           memoryLayer: {
@@ -140,7 +140,9 @@ export class ApiFileSystemStateMachine {
         if (!allTasks[module]) {
           allTasks[module] = {};
         }
-        allTasks[module][backendTaskId] = initialState;
+        if (backendTaskId) {
+          allTasks[module][backendTaskId] = initialState;
+        }
         this.saveLocalCache(allTasks);
         
         return initialState;
@@ -321,7 +323,7 @@ export class ApiFileSystemStateMachine {
             processingResults: [],
             intermediateData: []
           },
-          files: apiResponse.data.task?.files || [],
+          files: apiResponse.data.files || [],
           createdAt: apiResponse.data.createdAt || apiResponse.data.created_at || new Date().toISOString(),
           updatedAt: apiResponse.data.updatedAt || apiResponse.data.updated_at || new Date().toISOString()
         };
@@ -480,15 +482,8 @@ export class ApiFileSystemStateMachine {
         
         // 处理不同格式的文件列表
         if (Array.isArray(taskState.files)) {
-          // 如果是字符串数组，直接使用
-          return taskState.files.map(path => ({ path, name: path.split('/').pop() || path, type: 'video' }));
-        } else if (typeof taskState.files === 'object' && taskState.files !== null) {
-          // 如果是对象格式，按原有逻辑处理
-          return [
-            ...taskState.files.uploaded?.map((path: string) => ({ path, name: path.split('/').pop() || path, type: 'video' })) || [],
-            ...taskState.files.processed?.map((path: string) => ({ path, name: path.split('/').pop() || path, type: 'result' })) || [],
-            ...taskState.files.failed?.map((path: string) => ({ path, name: path.split('/').pop() || path, type: 'error' })) || []
-          ];
+          // 文件列表是字符串数组
+          return taskState.files.map((path: string) => ({ path, name: path.split('/').pop() || path, type: 'file' }));
         }
         return [];
       }
@@ -499,15 +494,8 @@ export class ApiFileSystemStateMachine {
       
       // 处理不同格式的文件列表
       if (Array.isArray(taskState.files)) {
-        // 如果是字符串数组，直接使用
-        return taskState.files.map(path => ({ path, name: path.split('/').pop() || path, type: 'video' }));
-      } else if (typeof taskState.files === 'object' && taskState.files !== null) {
-        // 如果是对象格式，按原有逻辑处理
-        return [
-          ...taskState.files.uploaded?.map((path: string) => ({ path, name: path.split('/').pop() || path, type: 'video' })) || [],
-          ...taskState.files.processed?.map((path: string) => ({ path, name: path.split('/').pop() || path, type: 'result' })) || [],
-          ...taskState.files.failed?.map((path: string) => ({ path, name: path.split('/').pop() || path, type: 'error' })) || []
-        ];
+        // 文件列表是字符串数组
+        return taskState.files.map((path: string) => ({ path, name: path.split('/').pop() || path, type: 'file' }));
       }
       return [];
     }
@@ -599,38 +587,13 @@ export class ApiFileSystemStateMachine {
         
         // 处理API响应数据（可能是数组或对象）
         const tasksArray = Array.isArray(apiResponse.data) ? apiResponse.data : 
-                          (apiResponse.data.tasks || []);
+                          [];
         
-        tasksArray.forEach((task: any) => {
-          // 将API响应转换为TaskState格式
-          const taskState: TaskState = {
-            ...task,
-            module: module, // 确保包含模块信息
-            progress: task.progress || {
-              current: 0,
-              total: 100,
-              percentage: 0,
-              message: '任务已创建',
-              timestamp: new Date().toISOString()
-            },
-            memoryLayer: task.memoryLayer || {
-              conversationHistory: [],
-              processingResults: [],
-              intermediateData: []
-            },
-            files: task.files || [],
-            createdAt: task.createdAt || new Date().toISOString(),
-            updatedAt: task.updatedAt || new Date().toISOString()
-          };
-          allTasks[module][task.taskId] = taskState;
-        });
-        this.saveLocalCache(allTasks);
-        
-        // 返回格式化的任务列表
-        return tasksArray.map((task: any) => ({
+        // 简化处理，直接返回API响应数据
+        return (tasksArray || []).map((task: any) => ({
           ...task,
           module: module
-        })).sort((a, b) => 
+        })).sort((a: any, b: any) => 
           new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime()
         );
       } else {
@@ -743,7 +706,7 @@ export class ApiFileSystemStateMachine {
     for (const module in allTasks) {
       for (const taskId in allTasks[module]) {
         const task = allTasks[module][taskId];
-        if (task.status === TaskStatus.SUCCESS && task.completedAt) {
+        if (task.status === TaskStatus.COMPLETED && task.completedAt) {
           const completedDate = new Date(task.completedAt);
           const daysOld = (currentDate.getTime() - completedDate.getTime()) / (1000 * 60 * 60 * 24);
           
@@ -854,7 +817,7 @@ export class ApiFileSystemStateMachine {
           // 添加上传的文件路径到文件列表
           // 后端返回的格式是 {success: true, task_id: "...", file_path: "...", filename: "..."}
           // 而不是 {success: true, data: {file_path: "...", file_name: "..."}}
-          const filePath = apiResponse.file_path || (apiResponse.data?.file_path);
+          const filePath = apiResponse.data?.file_path || apiResponse.data?.file_name;
           if (filePath) {
             allTasks[module][taskId].files = Array.isArray(allTasks[module][taskId].files) 
               ? [...allTasks[module][taskId].files, filePath]

@@ -33,8 +33,6 @@ const App: React.FC = () => {
   const [showMicroservice, setShowMicroservice] = useState(false);
   const [showApiIntegration, setShowApiIntegration] = useState(false);
   const [showLogPage, setShowLogPage] = useState(false);
-  const [interactiveFeatureType, setInteractiveFeatureType] = useState<'video-translate' | 'subtitle-extract' | 'text-translate'>('video-translate');
-  const [conversationalModule, setConversationalModule] = useState('video-translate');
   const [workflowType, setWorkflowType] = useState<'video-translation' | 'document-translation' | 'text-translation'>('video-translation')
 
   // 初始化性能监控器
@@ -217,7 +215,7 @@ const App: React.FC = () => {
   const handleFeatureSelect = (featureId: string) => {
     // Map professional features to conversational detail page (ChatGPT模式)
     if (featureId === 'professional-video-translation') {
-      setConversationalModule('video-translate')
+      setSelectedFeature('video-translate')
       setShowConversationalDetail(true)
       setShowHomePage(false)
       setShowDashboard(false)
@@ -231,7 +229,7 @@ const App: React.FC = () => {
       setShowMicroservice(false)
       setShowInteractiveDetail(false)
     } else if (featureId === 'subtitle-translation') {
-      setConversationalModule('subtitle-translate')
+      setSelectedFeature('subtitle-translate')
       setShowConversationalDetail(true)
       setShowHomePage(false)
       setShowDashboard(false)
@@ -245,7 +243,7 @@ const App: React.FC = () => {
       setShowMicroservice(false)
       setShowInteractiveDetail(false)
     } else if (featureId === 'subtitle-extraction') {
-      setConversationalModule('subtitle-extract')
+      setSelectedFeature('subtitle-extract')
       setShowConversationalDetail(true)
       setShowHomePage(false)
       setShowDashboard(false)
@@ -259,7 +257,7 @@ const App: React.FC = () => {
       setShowMicroservice(false)
       setShowInteractiveDetail(false)
     } else if (featureId === 'subtitle-erasure') {
-      setConversationalModule('subtitle-erase')
+      setSelectedFeature('subtitle-erase')
       setShowConversationalDetail(true)
       setShowHomePage(false)
       setShowDashboard(false)
@@ -273,7 +271,7 @@ const App: React.FC = () => {
       setShowMicroservice(false)
       setShowInteractiveDetail(false)
     } else if (featureId === 'video-subtitle-pressing') {
-      setConversationalModule('subtitle-burn')
+      setSelectedFeature('subtitle-burn')
       setShowConversationalDetail(true)
       setShowHomePage(false)
       setShowDashboard(false)
@@ -287,7 +285,7 @@ const App: React.FC = () => {
       setShowMicroservice(false)
       setShowInteractiveDetail(false)
     } else if (featureId === 'ai-video-narrative') {
-      setConversationalModule('ai-narration')
+      setSelectedFeature('ai-narration')
       setShowConversationalDetail(true)
       setShowHomePage(false)
       setShowDashboard(false)
@@ -304,11 +302,6 @@ const App: React.FC = () => {
 
   const handleBackFromInteractive = () => {
     setShowInteractiveDetail(false)
-    setShowHomePage(true)
-  }
-
-  const handleBackFromConversational = () => {
-    setShowConversationalDetail(false)
     setShowHomePage(true)
   }
 
@@ -459,7 +452,7 @@ const App: React.FC = () => {
             <ConversationalDetailPage />
           ) : showInteractiveDetail ? (
             <InteractiveDetailPage 
-              featureType={interactiveFeatureType}
+              featureType={'video-translate' as any}
               onBack={handleBackFromInteractive}
             />
           ) : showMicroservice ? (
