@@ -21,10 +21,25 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // 中间件配置
+app.set('trust proxy', 1); // 信任反向代理（Railway等）
 app.use(helmet()); // 安全头
 app.use(compression()); // 压缩
+// 处理 CORS 来源配置
+const getCorsOrigins = () => {
+  const envOrigins = process.env.CORS_ORIGIN;
+  if (envOrigins) {
+    // 如果环境变量是逗号分隔的字符串，转换为数组
+    if (typeof envOrigins === 'string') {
+      return envOrigins.split(',').map(origin => origin.trim());
+    }
+    return envOrigins;
+  }
+  // 默认允许本地开发和 Vercel 前端
+  return ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://translator-agent-rosy.vercel.app', 'https://translator-agent-*.vercel.app'];
+};
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: getCorsOrigins(),
   credentials: true
 }));
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -113,6 +128,21 @@ const createError = (message, code = 500, details = null) => ({
 
 // 健康检查
 app.get('/api/health', (req, res) => {
+  res.json(createResponse({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    dbSize: {
+      tasks: db.tasks.size,
+      files: db.files.size,
+      memoryLayers: db.memoryLayers.size
+    }
+  }));
+});
+
+// 版本化健康检查（供前端使用）
+app.get('/api/v1/health', (req, res) => {
   res.json(createResponse({
     status: 'healthy',
     timestamp: new Date().toISOString(),
