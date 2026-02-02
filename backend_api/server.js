@@ -88,7 +88,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ 
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 * 1024 }, // 默认10GB，可通过环境变量配置
   fileFilter: (req, file, cb) => {
     // 允许的文件类型
     const allowedTypes = /jpeg|jpg|png|gif|mp4|avi|mov|mp3|wav|txt|json|pdf|doc|docx/;
@@ -874,7 +874,9 @@ app.use((error, req, res, next) => {
   
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json(createError('文件大小超过限制 (10MB)', 400));
+      const maxSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 * 1024;
+      const maxSizeGB = (maxSize / (1024 * 1024 * 1024)).toFixed(1);
+      return res.status(400).json(createError(`文件大小超过限制 (${maxSizeGB}GB)`, 400));
     }
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json(createError('文件数量超过限制', 400));

@@ -12,6 +12,7 @@ import { Button } from '../components/ui/Button';
 import { FileInput } from '../components/ui/FileInput';
 import { Select } from '../components/ui/Select';
 import { Textarea } from '../components/ui/Textarea';
+import { apiClient } from '../utils/apiClient';
 
 export const SubtitlePage: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -37,24 +38,33 @@ export const SubtitlePage: React.FC = () => {
     setError(null);
     setResult(null);
 
-    // 模拟字幕处理
-    setTimeout(() => {
-      const mockResult = `1
-00:00:01,000 --> 00:00:04,000
-[翻译] 这是一个示例字幕
+    try {
+      // 先上传文件
+      const uploadResponse = await apiClient.uploadFile(uploadedFile!);
+      if (!uploadResponse.success || !uploadResponse.data) {
+        throw new Error(uploadResponse.error || '文件上传失败');
+      }
 
-2
-00:00:05,000 --> 00:00:08,000
-[翻译] 字幕翻译完成
+      const { file_path } = uploadResponse.data;
 
-3
-00:00:09,000 --> 00:00:12,000
-[翻译] 感谢使用`;
-      
-      setSubtitleText(mockResult);
-      setResult('字幕翻译完成！');
+      // 调用字幕处理API
+      const processResponse = await apiClient.processSubtitle({
+        subtitleUrl: file_path,
+        operation: 'translate',
+        targetLanguage,
+        options: {}
+      });
+
+      if (processResponse.success && processResponse.data) {
+        setResult(`字幕处理完成！结果文件：${processResponse.data.resultUrl}`);
+      } else {
+        throw new Error(processResponse.error || '字幕处理失败');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '字幕处理失败');
+    } finally {
       setIsProcessing(false);
-    }, 2000);
+    }
   };
 
   const handleDownload = () => {

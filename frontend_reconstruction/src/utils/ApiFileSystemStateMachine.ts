@@ -7,6 +7,14 @@ export class ApiFileSystemStateMachine {
   private storageKey = 'translator_agent_tasks'; // 本地缓存作为备份
   private apiEnabled: boolean;
   private apiAvailable: boolean = false;
+  
+  // 轮询节流机制
+  private lastApiCallTime: Record<string, number> = {}; // taskId -> timestamp
+  private apiCallInterval: number = 3000; // 增加到3秒最小间隔
+  private fallbackToLocalTime: Record<string, number> = {}; // taskId -> fallback timestamp
+  private fallbackToLocalTimeout: number = 15000; // 增加到15秒后回退到本地存储
+  private consecutiveFailures: Record<string, number> = {}; // taskId -> failure count
+  private maxConsecutiveFailures: number = 3; // 最大连续失败次数
 
   constructor() {
     const config = getApiConfig();
@@ -93,9 +101,7 @@ export class ApiFileSystemStateMachine {
     try {
       // 尝试使用后端API创建任务
       const apiResponse = await apiClient.createTask({
-        task_id: taskId,
-        task_type: module,
-        status: 'pending',
+        module,
         taskName,
         files: [],
         instructions: 'Task created from frontend',
@@ -104,10 +110,13 @@ export class ApiFileSystemStateMachine {
       
       if (apiResponse.success && apiResponse.data) {
         // 使用后端返回的任务ID和状态
-        const backendTask = apiResponse.data;
+        // 提取实际的任务数据（后端返回 {success: true, data: task, ...}）
+        // 后端返回格式: { success: true, data: task, message: "...", timestamp: "..." }
+        // 需要提取嵌套的 data 字段
+        const responseWrapper = apiResponse.data as any;
+        const backendTask = responseWrapper?.data || responseWrapper;
         console.log('[API-FSM] API Response data:', backendTask);
         
-        // 后端返回的是 {success: true, task: {...}} 格式
         const taskData = backendTask;
         const backendTaskId = taskData.taskId || taskData.id || taskId;
         
@@ -270,14 +279,42 @@ export class ApiFileSystemStateMachine {
     return updatedState;
   }
 
-  // 读取任务状态（优先使用后端API）
+  // 读取任务状态（优先使用后端API，带轮询节流）
   async readTaskState(taskId: string, module: string): Promise<TaskState> {
+    const now = Date.now();
+    const lastCall = this.lastApiCallTime[taskId] || 0;
+    const timeSinceLastCall = now - lastCall;
+    
+    // 检查是否应该使用本地存储（频率限制或回退状态）
+    if (timeSinceLastCall < this.apiCallInterval) {
+      console.log(`[API-FSM] API call too frequent for ${taskId}, using localStorage fallback`);
+      return await this.readTaskStateLocal(taskId, module);
+    }
+    
+    // 检查是否处于回退到本地存储的状态
+    const fallbackTime = this.fallbackToLocalTime[taskId] || 0;
+    if (fallbackTime > 0 && now - fallbackTime < this.fallbackToLocalTimeout) {
+      console.log(`[API-FSM] Using localStorage fallback for ${taskId} (rate limited)`);
+      return await this.readTaskStateLocal(taskId, module);
+    }
+    
+    // 检查连续失败次数
+    const failureCount = this.consecutiveFailures[taskId] || 0;
+    if (failureCount >= this.maxConsecutiveFailures) {
+      console.log(`[API-FSM] Too many consecutive failures for ${taskId}, using localStorage fallback`);
+      return await this.readTaskStateLocal(taskId, module);
+    }
+    
     try {
       // 尝试使用后端API读取任务
+      this.lastApiCallTime[taskId] = now; // 记录调用时间
       const apiResponse = await apiClient.getTaskStatus(taskId);
       
       if (apiResponse.success && apiResponse.data) {
         console.log(`[API-FSM] Read task state via API: ${taskId}`);
+        // 重置回退状态和失败计数
+        delete this.fallbackToLocalTime[taskId];
+        delete this.consecutiveFailures[taskId];
         
         // 同时更新本地缓存
         const allTasks = this.getLocalCache();
@@ -336,9 +373,23 @@ export class ApiFileSystemStateMachine {
         console.warn(`[API-FSM] API read failed, using localStorage: ${apiResponse.error}`);
         return await this.readTaskStateLocal(taskId, module);
       }
-    } catch (error) {
+    } catch (error: any) {
       // 异常处理，回退到本地存储
       console.error(`[API-FSM] API error, using localStorage:`, error);
+      
+      // 检查是否是429频率限制错误
+      if (error.message && (error.message.includes('HTTP 429') || 
+          error.message?.includes('请求过于频繁') || 
+          error.message?.includes('rate limit'))) {
+        console.warn(`[API-FSM] Rate limit hit for ${taskId}, switching to localStorage fallback`);
+        this.fallbackToLocalTime[taskId] = Date.now();
+        // 增加失败计数
+        this.consecutiveFailures[taskId] = (this.consecutiveFailures[taskId] || 0) + 1;
+      } else {
+        // 增加失败计数
+        this.consecutiveFailures[taskId] = (this.consecutiveFailures[taskId] || 0) + 1;
+      }
+      
       return await this.readTaskStateLocal(taskId, module);
     }
   }
@@ -352,6 +403,8 @@ export class ApiFileSystemStateMachine {
     }
 
     console.log(`[API-FSM] Read task state locally: ${taskId}`);
+    // 重置失败计数，因为本地读取成功
+    delete this.consecutiveFailures[taskId];
     return allTasks[module][taskId];
   }
 

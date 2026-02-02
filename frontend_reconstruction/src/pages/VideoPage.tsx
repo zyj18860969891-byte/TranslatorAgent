@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { FileInput } from '../components/ui/FileInput';
 import { Select } from '../components/ui/Select';
 import { Progress } from '../components/ui/Progress';
+import { apiClient } from '../utils/apiClient';
 
 export const VideoPage: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -34,19 +35,35 @@ export const VideoPage: React.FC = () => {
     setIsProcessing(true);
     setError(null);
     setResult(null);
+    setProgress(0);
 
-    // 模拟视频处理
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 5;
-      setProgress(progress);
-      
-      if (progress >= 100) {
-        clearInterval(interval);
-        setIsProcessing(false);
-        setResult('视频处理完成！字幕已提取并翻译。');
+    try {
+      // 先上传文件
+      const uploadResponse = await apiClient.uploadFile(uploadedFile);
+      if (!uploadResponse.success || !uploadResponse.data) {
+        throw new Error(uploadResponse.error || '文件上传失败');
       }
-    }, 500);
+
+      const { file_path } = uploadResponse.data;
+
+      // 调用视频处理API
+      const processResponse = await apiClient.processVideo({
+        videoUrl: file_path,
+        operation: 'translate_subtitles',
+        targetLanguage,
+        options: {}
+      });
+
+      if (processResponse.success && processResponse.data) {
+        setResult(`视频处理完成！结果文件：${processResponse.data.resultUrl}`);
+      } else {
+        throw new Error(processResponse.error || '视频处理失败');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '视频处理失败');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleDownload = () => {

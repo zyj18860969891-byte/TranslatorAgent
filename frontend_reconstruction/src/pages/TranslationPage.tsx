@@ -8,7 +8,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { Textarea } from '../components/ui/Textarea';
 import { Select } from '../components/ui/Select';
-// import { Badge } from '../components/ui/Badge';
+import { apiClient } from '../utils/apiClient';
 
 export const TranslationPage: React.FC = () => {
   const [inputText, setInputText] = useState('');
@@ -27,12 +27,23 @@ export const TranslationPage: React.FC = () => {
     setError(null);
     setResult(null);
 
-    // 模拟API调用
-    setTimeout(() => {
-      const mockResult = `[翻译] ${inputText}`;
-      setResult(mockResult);
+    try {
+      const response = await apiClient.translateText({
+        text: inputText,
+        targetLanguage,
+        sourceLanguage: 'auto'
+      });
+
+      if (response.success && response.data) {
+        setResult(response.data.translatedText);
+      } else {
+        setError(response.error || '翻译失败');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '翻译失败');
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleDownload = () => {

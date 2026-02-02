@@ -30,15 +30,10 @@ export const TranslatorDashboard: React.FC = () => {
     setError(null)
 
     try {
-      const response = await fetch('https://translatoragent-production.up.railway.app/api/v1/translation/translate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: inputText,
-          target_language: targetLang,
-        })
+      const { apiClient } = await import('../utils/apiClient');
+      const response = await apiClient.post('/translation/translate', {
+        text: inputText,
+        target_language: targetLang,
       });
       
       if (!response.ok) {

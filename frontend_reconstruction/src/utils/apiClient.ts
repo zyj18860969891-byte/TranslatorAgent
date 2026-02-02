@@ -117,7 +117,7 @@ export interface TranslationResponse {
 
 export interface VideoProcessingRequest {
   videoUrl: string;
-  operation: 'translate' | 'extract_subtitle' | 'add_subtitle' | 'remove_subtitle';
+  operation: string; // 允许任意操作类型
   targetLanguage?: string;
   subtitleFormat?: 'srt' | 'vtt' | 'ass';
   options?: Record<string, any>;
@@ -140,25 +140,19 @@ export interface SubtitleProcessingRequest {
 }
 
 export interface SubtitleProcessingResponse {
-  processedSubtitle: string;
-  conflicts?: Array<{
-    time: string;
-    issue: string;
-    severity: 'low' | 'medium' | 'high';
-  }>;
-  statistics: {
-    totalLines: number;
-    processedLines: number;
-    conflictsFound: number;
-  };
+  jobId: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  resultUrl?: string;
+  estimatedTime?: number;
+  operation?: string;
+  targetLanguage?: string;
+  timestamp?: string;
 }
 
 export interface TaskCreationRequest {
-  task_id?: string;
-  task_type: string;
-  status?: string;
-  module?: string;
-  taskName?: string;
+  module: string;
+  taskName: string;
   files?: Array<{
     name: string;
     type: string;
@@ -242,6 +236,15 @@ export class APIClient {
   // 翻译API
   async translate(request: TranslationRequest): Promise<ApiResponse<TranslationResponse>> {
     return this.post('/api/v1/translation/translate', request);
+  }
+
+  // 文本翻译（简化接口）
+  async translateText(request: { text: string; targetLanguage: string; sourceLanguage?: string }): Promise<ApiResponse<{ translatedText: string }>> {
+    return this.translate({
+      text: request.text,
+      targetLanguage: request.targetLanguage,
+      sourceLanguage: request.sourceLanguage
+    });
   }
 
   // 视频处理API
@@ -350,30 +353,15 @@ export class APIClient {
     return this.get('/health');
   }
 
-  // 上传文件（模拟）
-  async uploadFile(file: File, taskId: string): Promise<ApiResponse<{ url: string; name: string }>> {
-    // 在实际应用中，这里应该上传到真实的文件存储服务
-    // 这里返回模拟的 URL
-    const mockUrl = `http://localhost:8000/uploads/${taskId}/${file.name}`;
-    return {
-      success: true,
-      data: {
-        url: mockUrl,
-        name: file.name
-      }
-    };
-  }
-
-  // 上传实际文件到任务
-  async uploadTaskFile(taskId: string, file: File): Promise<ApiResponse<{ file_path: string; file_name: string }>> {
+  // 上传文件到通用存储
+  async uploadFile(file: File): Promise<ApiResponse<{ file_path: string; file_name: string }>> {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch(`${this.baseURL}/api/v1/tasks/${taskId}/files/upload`, {
+    const uploadUrl = buildUrl('/upload');
+    const response = await fetch(uploadUrl, {
       method: 'POST',
       body: formData,
-      // 注意：对于 FormData，不要设置 Content-Type 头，
-      // 浏览器会自动设置正确的 Content-Type 包含 boundary
     });
     
     if (!response.ok) {
@@ -382,6 +370,40 @@ export class APIClient {
     }
     
     return response.json();
+  }
+
+  // 上传实际文件到任务（先上传到通用存储，再关联到任务）
+  async uploadTaskFile(taskId: string, file: File): Promise<ApiResponse<{ file_path: string; file_name: string }>> {
+    // 步骤1：上传文件到通用存储
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const uploadUrl = buildUrl('/upload');
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`);
+    }
+    
+    const uploadResult = await uploadResponse.json();
+    
+    if (!uploadResult.success || !uploadResult.data) {
+      throw new Error(uploadResult.error || 'File upload failed');
+    }
+    
+    const { file_path } = uploadResult.data;
+    
+    // 步骤2：将文件关联到任务
+    const taskFileResponse = await this.post(`/tasks/${taskId}/files`, {
+      filePath: file_path,
+      status: 'uploaded'
+    });
+    
+    return taskFileResponse as unknown as Promise<ApiResponse<{ file_path: string; file_name: string }>>;
   }
 
   private getHeaders(): HeadersInit {
