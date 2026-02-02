@@ -1,0 +1,12 @@
+[build]
+command = "cd backend_api && npm install"
+
+[deploy]
+command = "cd backend_api && node index.js"
+
+[env]
+NODE_ENV = "production"
+PORT = "8000"
+
+[build.nodeVersion]
+version = "20"
