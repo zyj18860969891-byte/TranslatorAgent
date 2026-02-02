@@ -577,6 +577,92 @@ app.post('/api/v1/tasks/:taskId/process', async (req, res) => {
   }
 });
 
+// ==================== 翻译处理 ====================
+
+// 文本翻译
+app.post('/api/v1/translation/translate', async (req, res) => {
+  try {
+    const { text, targetLanguage, sourceLanguage = 'auto' } = req.body;
+    
+    if (!text || !targetLanguage) {
+      return res.status(400).json(createError('缺少必要参数: text 和 targetLanguage', 400));
+    }
+    
+    // 模拟翻译处理
+    const translatedText = `[${targetLanguage}] ${text}`;
+    
+    res.json(createResponse({
+      originalText: text,
+      translatedText,
+      sourceLanguage,
+      targetLanguage,
+      timestamp: new Date().toISOString()
+    }, '翻译完成'));
+  } catch (error) {
+    console.error('翻译错误:', error);
+    res.status(500).json(createError('翻译失败: ' + error.message));
+  }
+});
+
+// ==================== 视频处理 ====================
+
+// 视频处理
+app.post('/api/v1/video/process', async (req, res) => {
+  try {
+    const { videoUrl, operation, targetLanguage, options = {} } = req.body;
+    
+    if (!videoUrl || !operation) {
+      return res.status(400).json(createError('缺少必要参数: videoUrl 和 operation', 400));
+    }
+    
+    // 模拟视频处理
+    const result = {
+      jobId: uuidv4(),
+      status: 'completed',
+      progress: 100,
+      resultUrl: videoUrl.replace(/\.[^/.]+$/, '_processed.mp4'),
+      estimatedTime: 0,
+      operation,
+      targetLanguage,
+      timestamp: new Date().toISOString()
+    };
+    
+    res.json(createResponse(result, '视频处理完成'));
+  } catch (error) {
+    console.error('视频处理错误:', error);
+    res.status(500).json(createError('视频处理失败: ' + error.message));
+  }
+});
+
+// ==================== 字幕处理 ====================
+
+// 字幕处理
+app.post('/api/v1/subtitle/process', async (req, res) => {
+  try {
+    const { subtitleUrl, operation, targetLanguage, options = {} } = req.body;
+    
+    if (!subtitleUrl || !operation) {
+      return res.status(400).json(createError('缺少必要参数: subtitleUrl 和 operation', 400));
+    }
+    
+    // 模拟字幕处理
+    const result = {
+      jobId: uuidv4(),
+      status: 'completed',
+      progress: 100,
+      resultUrl: subtitleUrl.replace(/\.[^/.]+$/, '_processed.srt'),
+      operation,
+      targetLanguage,
+      timestamp: new Date().toISOString()
+    };
+    
+    res.json(createResponse(result, '字幕处理完成'));
+  } catch (error) {
+    console.error('字幕处理错误:', error);
+    res.status(500).json(createError('字幕处理失败: ' + error.message));
+  }
+});
+
 // ==================== 系统信息 ====================
 
 // 获取系统信息
@@ -597,6 +683,174 @@ app.get('/api/v1/system/info', async (req, res) => {
   } catch (error) {
     console.error('获取系统信息错误:', error);
     res.status(500).json(createError('获取系统信息失败: ' + error.message));
+  }
+});
+
+// ==================== 任务管理扩展 ====================
+
+// 取消任务
+app.post('/api/v1/tasks/:taskId/cancel', async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const task = db.tasks.get(taskId);
+
+    if (!task) {
+      return res.status(404).json(createError('任务不存在', 404));
+    }
+
+    if (task.status === 'completed' || task.status === 'failed') {
+      return res.status(400).json(createError('任务已完成或失败，无法取消', 400));
+    }
+
+    task.status = TaskStatus.FAILED;
+    task.message = '任务已取消';
+    task.error = '用户取消任务';
+    task.updatedAt = new Date().toISOString();
+    db.tasks.set(taskId, task);
+    db.stats.failedTasks++;
+    db.stats.processingTasks--;
+
+    res.json(createResponse(task, '任务已取消'));
+  } catch (error) {
+    console.error('取消任务错误:', error);
+    res.status(500).json(createError('取消任务失败: ' + error.message));
+  }
+});
+
+// 删除任务
+app.delete('/api/v1/tasks/:taskId', async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const task = db.tasks.get(taskId);
+
+    if (!task) {
+      return res.status(404).json(createError('任务不存在', 404));
+    }
+
+    // 删除任务及相关数据
+    db.tasks.delete(taskId);
+    
+    // 清理相关的文件记录
+    for (const [fileId, file] of db.files.entries()) {
+      if (file.taskId === taskId) {
+        db.files.delete(fileId);
+      }
+    }
+
+    res.json(createResponse(null, '任务删除成功'));
+  } catch (error) {
+    console.error('删除任务错误:', error);
+    res.status(500).json(createError('删除任务失败: ' + error.message));
+  }
+});
+
+// 获取所有任务（包含所有模块）
+app.get('/api/v1/tasks/all', async (req, res) => {
+  try {
+    const allTasks = Array.from(db.tasks.values());
+    res.json(createResponse(allTasks, '所有任务获取成功'));
+  } catch (error) {
+    console.error('获取所有任务错误:', error);
+    res.status(500).json(createError('获取所有任务失败: ' + error.message));
+  }
+});
+
+// 获取任务文件列表
+app.get('/api/v1/tasks/:taskId/files', async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const task = db.tasks.get(taskId);
+
+    if (!task) {
+      return res.status(404).json(createError('任务不存在', 404));
+    }
+
+    // 收集任务的所有文件信息
+    const taskFiles = [];
+    for (const fileId of task.files.uploaded) {
+      const file = db.files.get(fileId);
+      if (file) {
+        taskFiles.push({
+          fileId: file.fileId,
+          name: file.originalName,
+          type: file.mimetype,
+          size: file.size,
+          url: `/api/v1/tasks/${taskId}/files/${encodeURIComponent(file.originalName)}`,
+          uploadedAt: file.uploadedAt
+        });
+      }
+    }
+
+    res.json(createResponse(taskFiles, '任务文件列表获取成功'));
+  } catch (error) {
+    console.error('获取任务文件错误:', error);
+    res.status(500).json(createError('获取任务文件失败: ' + error.message));
+  }
+});
+
+// 下载任务文件
+app.get('/api/v1/tasks/:taskId/files/:fileName', async (req, res) => {
+  try {
+    const { taskId, fileName } = req.params;
+    const task = db.tasks.get(taskId);
+
+    if (!task) {
+      return res.status(404).json(createError('任务不存在', 404));
+    }
+
+    // 查找文件记录
+    let targetFile = null;
+    for (const fileId of task.files.uploaded) {
+      const file = db.files.get(fileId);
+      if (file && file.originalName === fileName) {
+        targetFile = file;
+        break;
+      }
+    }
+
+    if (!targetFile) {
+      return res.status(404).json(createError('文件不存在', 404));
+    }
+
+    // 发送文件
+    res.download(targetFile.path, targetFile.originalName);
+  } catch (error) {
+    console.error('下载文件错误:', error);
+    res.status(500).json(createError('下载文件失败: ' + error.message));
+  }
+});
+
+// 获取可用模型信息
+app.get('/api/v1/models', async (req, res) => {
+  try {
+    const models = [
+      {
+        id: 'whisper-large-v3',
+        name: 'Whisper Large v3',
+        provider: 'modelscope',
+        capabilities: ['speech-to-text', 'transcription'],
+        description: '高性能语音识别模型'
+      },
+      {
+        id: 'qwen-audio',
+        name: 'Qwen Audio',
+        provider: 'modelscope',
+        capabilities: ['audio-understanding', 'transcription'],
+        description: '阿里通义千问音频模型'
+      },
+      {
+        id: 'funasr-realtime',
+        name: 'FunASR Real-time',
+        provider: 'modelscope',
+        capabilities: ['real-time-transcription'],
+        description: '实时语音识别'
+      }
+    ];
+
+    res.json(createResponse(models, '模型列表获取成功'));
+  } catch (error) {
+    console.error('获取模型错误:', error);
+    res.status(500).json(createError('获取模型失败: ' + error.message));
   }
 });
 
