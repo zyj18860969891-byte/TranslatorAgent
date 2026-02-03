@@ -5,8 +5,7 @@
       "src": "frontend_reconstruction/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "frontend_reconstruction/dist",
-        "cwd": "frontend_reconstruction"
+        "distDir": "frontend_reconstruction/dist"
       }
     }
   ],
