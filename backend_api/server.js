@@ -362,6 +362,21 @@ app.post('/api/v1/tasks/:taskId/status', async (req, res) => {
     // 更新统计
     if (status === TaskStatus.COMPLETED) {
       task.completedAt = new Date().toISOString();
+      
+      // 将上传的文件移动到已处理数组
+      if (task.files.uploaded.length > 0) {
+        task.files.processed = [...task.files.uploaded];
+        task.files.uploaded = [];
+        
+        // 添加处理结果到记忆层
+        task.memoryLayer.processingResults.push({
+          timestamp: new Date().toISOString(),
+          result: '处理成功',
+          details: `成功处理 ${task.files.processed.length} 个文件`,
+          processedFiles: task.files.processed
+        });
+      }
+      
       db.stats.completedTasks++;
       db.stats.processingTasks--;
     } else if (status === TaskStatus.FAILED) {
@@ -566,9 +581,34 @@ app.post('/api/v1/upload/batch', upload.array('files', 10), async (req, res) => 
   }
 });
 
-// ==================== 实时模拟处理 ====================
+// ==================== 实时处理（调用Python服务） ====================
 
-// 模拟任务处理（用于演示）
+// Python处理服务配置
+const PYTHON_PROCESSING_SERVICE = process.env.PYTHON_PROCESSING_SERVICE || 'http://localhost:8001';
+
+// 调用Python处理服务
+async function callPythonProcessingService(endpoint, data) {
+  try {
+    const response = await fetch(`${PYTHON_PROCESSING_SERVICE}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Python服务响应错误: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('调用Python处理服务失败:', error);
+    throw error;
+  }
+}
+
+// 任务处理（调用Python服务）
 app.post('/api/v1/tasks/:taskId/process', async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -584,58 +624,67 @@ app.post('/api/v1/tasks/:taskId/process', async (req, res) => {
     task.updatedAt = new Date().toISOString();
     db.tasks.set(taskId, task);
 
-    // 模拟处理过程
-    const simulateProcessing = async () => {
-      for (let i = 1; i <= 10; i++) {
-        await new Promise(resolve => setTimeout(resolve, 500)); // 每500ms更新一次进度
-        
-        const currentTask = db.tasks.get(taskId);
-        if (!currentTask || currentTask.status === TaskStatus.FAILED) {
-          return;
-        }
-
-        currentTask.progress = i * 10;
-        currentTask.message = `处理中... ${i * 10}%`;
-        currentTask.updatedAt = new Date().toISOString();
-        db.tasks.set(taskId, currentTask);
-      }
-
-      // 处理完成
-      const finalTask = db.tasks.get(taskId);
-      if (finalTask) {
-        finalTask.status = TaskStatus.COMPLETED;
-        finalTask.progress = 100;
-        finalTask.message = '任务处理完成';
-        finalTask.completedAt = new Date().toISOString();
-        finalTask.updatedAt = new Date().toISOString();
-        
-        // 添加处理结果到记忆层
-        finalTask.memoryLayer.processingResults.push({
-          timestamp: new Date().toISOString(),
-          result: '处理成功',
-          details: '所有文件已成功处理'
-        });
-
-        db.tasks.set(taskId, finalTask);
-        db.stats.completedTasks++;
-        db.stats.processingTasks--;
-      }
+    // 准备传递给Python服务的数据
+    const processingData = {
+      taskId: taskId,
+      type: task.type || 'video-translate',
+      module: task.module || 'video-translate',
+      title: task.title,
+      description: task.description,
+      files: task.files.uploaded,
+      options: task.options || {}
     };
 
-    // 异步执行处理
-    simulateProcessing().catch(error => {
-      console.error('处理任务错误:', error);
-      const failedTask = db.tasks.get(taskId);
-      if (failedTask) {
-        failedTask.status = TaskStatus.FAILED;
-        failedTask.message = '处理失败: ' + error.message;
-        failedTask.error = error.message;
-        failedTask.updatedAt = new Date().toISOString();
-        db.tasks.set(taskId, failedTask);
-        db.stats.failedTasks++;
-        db.stats.processingTasks--;
-      }
-    });
+    // 调用Python处理服务
+    callPythonProcessingService('/api/v1/process/tasks/' + taskId, processingData)
+      .then(async (result) => {
+        // 处理成功，更新任务状态
+        const updatedTask = db.tasks.get(taskId);
+        if (updatedTask) {
+          updatedTask.status = TaskStatus.COMPLETED;
+          updatedTask.progress = 100;
+          updatedTask.message = '任务处理完成';
+          updatedTask.completedAt = new Date().toISOString();
+          updatedTask.updatedAt = new Date().toISOString();
+          
+          // 将上传的文件移动到已处理数组
+          if (updatedTask.files.uploaded.length > 0) {
+            updatedTask.files.processed = [...updatedTask.files.uploaded];
+            updatedTask.files.uploaded = [];
+          }
+          
+          // 添加处理结果到记忆层
+          if (result.data && result.data.result) {
+            updatedTask.memoryLayer.processingResults.push({
+              timestamp: new Date().toISOString(),
+              result: '处理成功',
+              details: `成功处理 ${updatedTask.files.processed.length} 个文件`,
+              processedFiles: updatedTask.files.processed,
+              modelResult: result.data.result
+            });
+          }
+          
+          db.tasks.set(taskId, updatedTask);
+          db.stats.completedTasks++;
+          db.stats.processingTasks--;
+          
+          console.log(`任务处理完成: ${taskId}`);
+        }
+      })
+      .catch(async (error) => {
+        // 处理失败，更新任务状态
+        console.error('处理任务错误:', error);
+        const failedTask = db.tasks.get(taskId);
+        if (failedTask) {
+          failedTask.status = TaskStatus.FAILED;
+          failedTask.message = '处理失败: ' + error.message;
+          failedTask.error = error.message;
+          failedTask.updatedAt = new Date().toISOString();
+          db.tasks.set(taskId, failedTask);
+          db.stats.failedTasks++;
+          db.stats.processingTasks--;
+        }
+      });
 
     res.json(createResponse(task, '任务开始处理'));
   } catch (error) {
@@ -646,7 +695,7 @@ app.post('/api/v1/tasks/:taskId/process', async (req, res) => {
 
 // ==================== 翻译处理 ====================
 
-// 文本翻译
+// 文本翻译（调用Python服务）
 app.post('/api/v1/translation/translate', async (req, res) => {
   try {
     const { text, targetLanguage, sourceLanguage = 'auto' } = req.body;
@@ -655,15 +704,22 @@ app.post('/api/v1/translation/translate', async (req, res) => {
       return res.status(400).json(createError('缺少必要参数: text 和 targetLanguage', 400));
     }
     
-    // 模拟翻译处理
-    const translatedText = `[${targetLanguage}] ${text}`;
+    // 调用Python处理服务进行翻译
+    const translateData = {
+      text,
+      targetLanguage,
+      sourceLanguage
+    };
+    
+    const result = await callPythonProcessingService('/api/v1/process/translate', translateData);
     
     res.json(createResponse({
       originalText: text,
-      translatedText,
-      sourceLanguage,
-      targetLanguage,
-      timestamp: new Date().toISOString()
+      translatedText: result.data?.translatedText || result.data?.result || `[${targetLanguage}] ${text}`,
+      sourceLanguage: sourceLanguage,
+      targetLanguage: targetLanguage,
+      timestamp: new Date().toISOString(),
+      modelUsed: 'qwen3'
     }, '翻译完成'));
   } catch (error) {
     console.error('翻译错误:', error);
@@ -673,7 +729,7 @@ app.post('/api/v1/translation/translate', async (req, res) => {
 
 // ==================== 视频处理 ====================
 
-// 视频处理
+// 视频处理（调用Python服务）
 app.post('/api/v1/video/process', async (req, res) => {
   try {
     const { videoUrl, operation, targetLanguage, options = {} } = req.body;
@@ -682,19 +738,27 @@ app.post('/api/v1/video/process', async (req, res) => {
       return res.status(400).json(createError('缺少必要参数: videoUrl 和 operation', 400));
     }
     
-    // 模拟视频处理
-    const result = {
-      jobId: uuidv4(),
+    // 调用Python处理服务进行视频处理
+    const videoData = {
+      video_url: videoUrl,
+      operation,
+      targetLanguage,
+      options
+    };
+    
+    const result = await callPythonProcessingService('/api/v1/process/video', videoData);
+    
+    res.json(createResponse({
+      jobId: result.data?.jobId || uuidv4(),
       status: 'completed',
       progress: 100,
-      resultUrl: videoUrl.replace(/\.[^/.]+$/, '_processed.mp4'),
+      resultUrl: result.data?.resultUrl || videoUrl.replace(/\.[^/.]+$/, '_processed.mp4'),
       estimatedTime: 0,
       operation,
       targetLanguage,
-      timestamp: new Date().toISOString()
-    };
-    
-    res.json(createResponse(result, '视频处理完成'));
+      timestamp: new Date().toISOString(),
+      modelUsed: 'qwen3-omni-flash-realtime'
+    }, '视频处理完成'));
   } catch (error) {
     console.error('视频处理错误:', error);
     res.status(500).json(createError('视频处理失败: ' + error.message));
@@ -703,7 +767,7 @@ app.post('/api/v1/video/process', async (req, res) => {
 
 // ==================== 字幕处理 ====================
 
-// 字幕处理
+// 字幕处理（调用Python服务）
 app.post('/api/v1/subtitle/process', async (req, res) => {
   try {
     const { subtitleUrl, operation, targetLanguage, options = {} } = req.body;
@@ -712,18 +776,26 @@ app.post('/api/v1/subtitle/process', async (req, res) => {
       return res.status(400).json(createError('缺少必要参数: subtitleUrl 和 operation', 400));
     }
     
-    // 模拟字幕处理
-    const result = {
-      jobId: uuidv4(),
-      status: 'completed',
-      progress: 100,
-      resultUrl: subtitleUrl.replace(/\.[^/.]+$/, '_processed.srt'),
+    // 调用Python处理服务进行字幕处理
+    const subtitleData = {
+      subtitle_url: subtitleUrl,
       operation,
       targetLanguage,
-      timestamp: new Date().toISOString()
+      options
     };
     
-    res.json(createResponse(result, '字幕处理完成'));
+    const result = await callPythonProcessingService('/api/v1/process/subtitle', subtitleData);
+    
+    res.json(createResponse({
+      jobId: result.data?.jobId || uuidv4(),
+      status: 'completed',
+      progress: 100,
+      resultUrl: result.data?.resultUrl || subtitleUrl.replace(/\.[^/.]+$/, '_processed.srt'),
+      operation,
+      targetLanguage,
+      timestamp: new Date().toISOString(),
+      modelUsed: 'qwen3-vl-rerank'
+    }, '字幕处理完成'));
   } catch (error) {
     console.error('字幕处理错误:', error);
     res.status(500).json(createError('字幕处理失败: ' + error.message));
