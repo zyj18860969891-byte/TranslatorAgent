@@ -157,7 +157,10 @@ export class ApiFileSystemStateMachine {
         this.saveLocalCache(allTasks);
         
         // 触发任务处理（异步，不阻塞返回）
-        this.triggerTaskProcessing(backendTaskId).catch(error => {
+        console.log(`[API-FSM] About to trigger task processing for ${backendTaskId}`);
+        this.triggerTaskProcessing(backendTaskId).then(() => {
+          console.log(`[API-FSM] Task processing triggered successfully: ${backendTaskId}`);
+        }).catch(error => {
           console.error(`[API-FSM] Failed to trigger task processing: ${backendTaskId}`, error);
         });
         
@@ -929,10 +932,13 @@ export class ApiFileSystemStateMachine {
 
   // 触发任务处理（调用后端处理端点）
   private async triggerTaskProcessing(taskId: string): Promise<void> {
+    console.log(`[API-FSM] triggerTaskProcessing called for task ${taskId}`);
     try {
+      console.log(`[API-FSM] Calling apiClient.processTask for ${taskId}`);
       const apiResponse = await apiClient.processTask(taskId);
+      console.log(`[API-FSM] processTask response:`, apiResponse);
       if (apiResponse.success) {
-        console.log(`[API-FSM] Task processing triggered: ${taskId}`);
+        console.log(`[API-FSM] Task processing triggered successfully: ${taskId}`);
       } else {
         console.warn(`[API-FSM] Failed to trigger task processing: ${apiResponse.error}`);
       }
