@@ -8,6 +8,10 @@
   ],
   "routes": [
     {
+      "src": "/assets/(.*)",
+      "dest": "/frontend_reconstruction/dist/assets/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/frontend_reconstruction/dist/index.html"
     }
