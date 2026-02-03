@@ -75,13 +75,23 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
-// 速率限制
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 每个IP最多100个请求
+// 速率限制（针对不同端点使用不同限制）
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟窗口
+  max: 300, // 每个IP最多300个请求/分钟
   message: { error: '请求过于频繁，请稍后再试' }
 });
-app.use('/api/', limiter);
+
+// 任务状态轮询使用更宽松的限制
+const pollingLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分钟窗口
+  max: 120, // 每个IP最多120次轮询/分钟（每0.5秒一次）
+  message: { error: '请求过于频繁，请稍后再试' }
+});
+
+// 应用速率限制（对轮询端点使用更宽松的限制）
+app.use('/api/v1/tasks', pollingLimiter); // 任务相关端点
+app.use('/api/', generalLimiter); // 其他API端点
 
 // 文件上传配置
 const storage = multer.diskStorage({
