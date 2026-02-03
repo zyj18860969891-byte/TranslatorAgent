@@ -64,16 +64,81 @@ const getCorsOrigins = () => {
   return [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'https://translator-agent-*.vercel.app',
     vercelDomainPattern
   ];
 };
 
+// 动态CORS中间件
 app.use(cors({
-  origin: getCorsOrigins(),
+  origin: (origin, callback) => {
+    // 允许没有origin的请求（如移动端应用、Postman等）
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = getCorsOrigins();
+    
+    console.log(`[CORS] 检查跨域请求: ${origin}`);
+    console.log(`[CORS] 允许的来源:`, allowedOrigins);
+    
+    // 检查origin是否在允许列表中
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        // 精确字符串匹配
+        if (origin === allowedOrigin) {
+          console.log(`[CORS] 字符串匹配成功: ${origin} === ${allowedOrigin}`);
+          return true;
+        }
+        // 通配符匹配（简单的字符串包含）
+        if (allowedOrigin.includes('*') && origin.includes(allowedOrigin.split('*')[0])) {
+          console.log(`[CORS] 通配符匹配成功: ${origin} 包含 ${allowedOrigin.split('*')[0]}`);
+          return true;
+        }
+      } else if (allowedOrigin instanceof RegExp) {
+        // 正则表达式匹配
+        const matches = allowedOrigin.test(origin);
+        console.log(`[CORS] 正则匹配: ${origin} ~ ${allowedOrigin} = ${matches}`);
+        return matches;
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      console.log(`[CORS] 允许跨域请求: ${origin}`);
+      callback(null, true);
+    } else {
+      console.log(`[CORS] 拒绝跨域请求: ${origin}`);
+      callback(new Error('不允许的跨域请求'));
+    }
+  },
   credentials: true
 }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+
+// 获取任务统计（移到速率限制器之前）
+app.get('/api/v1/tasks/stats', async (req, res) => {
+  try {
+    const { module } = req.query;
+    
+    let stats = { ...db.stats };
+    
+    // 按模块统计
+    if (module) {
+      const moduleTasks = Array.from(db.tasks.values()).filter(t => t.module === module);
+      stats = {
+        totalTasks: moduleTasks.length,
+        completedTasks: moduleTasks.filter(t => t.status === TaskStatus.COMPLETED).length,
+        failedTasks: moduleTasks.filter(t => t.status === TaskStatus.FAILED).length,
+        processingTasks: moduleTasks.filter(t => t.status === TaskStatus.PROCESSING || t.status === TaskStatus.QUEUED).length
+      };
+    }
+
+    res.json(createResponse(stats, '任务统计获取成功'));
+  } catch (error) {
+    console.error('获取任务统计错误:', error);
+    res.status(500).json(createError('获取任务统计失败: ' + error.message));
+  }
+});
 
 // 速率限制（针对不同端点使用不同限制）
 const generalLimiter = rateLimit({
@@ -90,8 +155,12 @@ const pollingLimiter = rateLimit({
 });
 
 // 应用速率限制（对轮询端点使用更宽松的限制）
-app.use('/api/v1/tasks', pollingLimiter); // 任务相关端点
-app.use('/api/', generalLimiter); // 其他API端点
+app.use('/api/v1/tasks/:taskId', pollingLimiter); // 具体任务相关端点
+app.use('/api/v1/tasks', pollingLimiter); // 任务列表端点（不包含stats）
+app.use('/api/upload', generalLimiter); // 上传端点
+app.use('/api/translation', generalLimiter); // 翻译端点
+app.use('/api/video', generalLimiter); // 视频端点
+app.use('/api/subtitle', generalLimiter); // 字幕端点
 
 // 文件上传配置
 const storage = multer.diskStorage({
@@ -440,31 +509,6 @@ app.post('/api/v1/tasks/cleanup', async (req, res) => {
   } catch (error) {
     console.error('清理任务错误:', error);
     res.status(500).json(createError('清理任务失败: ' + error.message));
-  }
-});
-
-// 获取任务统计
-app.get('/api/v1/tasks/stats', async (req, res) => {
-  try {
-    const { module } = req.query;
-    
-    let stats = { ...db.stats };
-    
-    // 按模块统计
-    if (module) {
-      const moduleTasks = Array.from(db.tasks.values()).filter(t => t.module === module);
-      stats = {
-        totalTasks: moduleTasks.length,
-        completedTasks: moduleTasks.filter(t => t.status === TaskStatus.COMPLETED).length,
-        failedTasks: moduleTasks.filter(t => t.status === TaskStatus.FAILED).length,
-        processingTasks: moduleTasks.filter(t => t.status === TaskStatus.PROCESSING || t.status === TaskStatus.QUEUED).length
-      };
-    }
-
-    res.json(createResponse(stats, '任务统计获取成功'));
-  } catch (error) {
-    console.error('获取任务统计错误:', error);
-    res.status(500).json(createError('获取任务统计失败: ' + error.message));
   }
 });
 

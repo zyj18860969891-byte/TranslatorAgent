@@ -259,7 +259,7 @@ export class APIClient {
 
   // 创建任务
   async createTask(request: TaskCreationRequest): Promise<ApiResponse<TaskCreationResponse>> {
-    return this.post('/tasks', request);
+    return this.post(`/api/v1/tasks`, request);
   }
 
   // 获取任务状态
@@ -303,7 +303,7 @@ export class APIClient {
 
   // 处理任务（触发实际的任务执行）
   async processTask(taskId: string): Promise<ApiResponse<any>> {
-    return this.post(`/tasks/${taskId}/process`, {});
+    return this.post(`/api/v1/tasks/${taskId}/process`, {});
   }
 
   // 添加到记忆层
@@ -472,6 +472,7 @@ export class APIClient {
 
     try {
       const url = buildUrl(endpoint);
+      console.log(`[API Client] POST ${url}`, data);
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -479,6 +480,8 @@ export class APIClient {
         ...options,
       });
 
+      console.log(`[API Client] POST ${url} status: ${response.status}`);
+      
       if (!response.ok) {
         const errorText = await response.text();
         return {
@@ -487,12 +490,14 @@ export class APIClient {
         };
       }
 
-      const data = await response.json();
+      const responseData = await response.json();
+      console.log(`[API Client] POST ${url} response:`, responseData);
       return {
         success: true,
-        data
+        data: responseData
       };
     } catch (error) {
+      console.error(`[API Client] POST ${endpoint} error:`, error);
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error)
