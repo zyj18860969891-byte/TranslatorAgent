@@ -27,10 +27,10 @@ app.use(compression()); // 压缩
 // 处理 CORS 来源配置
 const getCorsOrigins = () => {
   const envOrigins = process.env.CORS_ORIGIN;
-  const defaultOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://translator-agent-rosy.vercel.app', 'https://translator-agent-*.vercel.app'];
+  // 正则表达式匹配所有translator-agent Vercel子域名
+  const vercelDomainPattern = /^https:\/\/translator-agent-.*\.vercel\.app$/;
   
   if (envOrigins) {
-    // 如果环境变量是逗号分隔的字符串，转换为数组
     let originsArray = [];
     if (typeof envOrigins === 'string') {
       originsArray = envOrigins.split(',').map(origin => origin.trim());
@@ -38,21 +38,34 @@ const getCorsOrigins = () => {
       originsArray = envOrigins;
     }
     
-    // 确保包含 Vercel 前端域名（如果不在列表中，自动添加）
-    const vercelDomains = ['https://translator-agent-rosy.vercel.app', 'https://translator-agent-*.vercel.app'];
-    const hasVercelDomain = vercelDomains.some(vercel => originsArray.includes(vercel) || 
-      originsArray.some(origin => origin.includes('vercel.app')));
+    // 检查是否已有Vercel域名（精确匹配、通配符字符串或正则表达式）
+    const hasVercelDomain = originsArray.some(origin => {
+      if (origin === 'https://translator-agent-*.vercel.app') {
+        return true;
+      }
+      if (typeof origin === 'string' && origin.includes('vercel.app')) {
+        return true;
+      }
+      if (origin instanceof RegExp) {
+        return origin.test('https://translator-agent-sandy.vercel.app');
+      }
+      return false;
+    });
     
     if (!hasVercelDomain) {
       console.log('[CORS] Auto-adding Vercel domains to allowed origins');
-      originsArray.push(...vercelDomains);
+      originsArray.push(vercelDomainPattern);
     }
     
     return originsArray;
   }
   
-  // 默认允许本地开发和 Vercel 前端
-  return defaultOrigins;
+  // 默认允许本地开发和所有Vercel子域名
+  return [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    vercelDomainPattern
+  ];
 };
 
 app.use(cors({
