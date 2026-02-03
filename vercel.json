@@ -3,17 +3,16 @@
   "builds": [
     {
       "src": "frontend_reconstruction/package.json",
-      "use": "@vercel/static-build"
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
     {
-      "src": "/assets/(.*)",
-      "dest": "/frontend_reconstruction/dist/assets/$1"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/frontend_reconstruction/index.html"
+      "dest": "/index.html"
     }
   ],
   "env": {
