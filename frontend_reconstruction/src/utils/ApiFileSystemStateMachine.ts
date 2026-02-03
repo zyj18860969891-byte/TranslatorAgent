@@ -156,6 +156,11 @@ export class ApiFileSystemStateMachine {
         }
         this.saveLocalCache(allTasks);
         
+        // 触发任务处理（异步，不阻塞返回）
+        this.triggerTaskProcessing(backendTaskId, module).catch(error => {
+          console.error(`[API-FSM] Failed to trigger task processing: ${backendTaskId}`, error);
+        });
+        
         return initialState;
       } else {
         // API失败，回退到本地存储
@@ -919,6 +924,20 @@ export class ApiFileSystemStateMachine {
       // 异常处理，抛出错误
       console.error(`[API-FSM] API error during file upload:`, error);
       throw error;
+    }
+  }
+
+  // 触发任务处理（调用后端处理端点）
+  private async triggerTaskProcessing(taskId: string, module: string): Promise<void> {
+    try {
+      const apiResponse = await apiClient.processTask(taskId);
+      if (apiResponse.success) {
+        console.log(`[API-FSM] Task processing triggered: ${taskId}`);
+      } else {
+        console.warn(`[API-FSM] Failed to trigger task processing: ${apiResponse.error}`);
+      }
+    } catch (error) {
+      console.error(`[API-FSM] Error triggering task processing:`, error);
     }
   }
 }

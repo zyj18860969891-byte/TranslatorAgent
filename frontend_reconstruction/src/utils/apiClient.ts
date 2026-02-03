@@ -298,7 +298,12 @@ export class APIClient {
 
   // 添加文件到任务
   async addFileToTask(taskId: string, module: string, filePath: string, status: string): Promise<ApiResponse<any>> {
-    return this.post(`/tasks/${taskId}/files`, { module, file_path: filePath, status });
+    return this.post(`/tasks/${taskId}/files`, { module, filePath, status });
+  }
+
+  // 处理任务（触发实际的任务执行）
+  async processTask(taskId: string): Promise<ApiResponse<any>> {
+    return this.post(`/tasks/${taskId}/process`, {});
   }
 
   // 添加到记忆层
