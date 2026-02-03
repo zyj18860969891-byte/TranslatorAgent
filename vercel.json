@@ -5,14 +5,15 @@
       "src": "frontend_reconstruction/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "frontend_reconstruction/dist"
+        "distDir": "dist",
+        "cwd": "frontend_reconstruction"
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/frontend_reconstruction/index.html"
+      "dest": "/index.html"
     }
   ],
   "env": {
