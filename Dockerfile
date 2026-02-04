@@ -4,8 +4,17 @@ FROM node:20-alpine
 # 设置工作目录
 WORKDIR /app
 
-# 安装Python和pip
-RUN apk add --no-cache python3 py3-pip && ln -sf python3 /usr/bin/python
+# 安装Python和pip以及构建依赖
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    build-base \
+    python3-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    zlib-dev \
+    jpeg-dev \
+    && ln -sf python3 /usr/bin/python
 
 # 创建Python虚拟环境
 RUN python -m venv /opt/venv
