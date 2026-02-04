@@ -7,6 +7,10 @@ WORKDIR /app
 # 安装Python和pip
 RUN apk add --no-cache python3 py3-pip && ln -sf python3 /usr/bin/python
 
+# 创建Python虚拟环境
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 # 复制Node.js后端依赖
 COPY backend_api/package.json backend_api/package-lock.json ./
 
@@ -16,7 +20,7 @@ RUN npm install
 # 复制Python处理服务依赖
 COPY processing_service/requirements.txt ./
 
-# 安装Python依赖
+# 安装Python依赖到虚拟环境
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
