@@ -8,15 +8,15 @@ export class ApiFileSystemStateMachine {
   private apiEnabled: boolean;
   private apiAvailable: boolean = false;
   
-  // 轮询节流机制（调试阶段暂时禁用）
+  // 轮询节流机制（已启用，避免API限流）
   private lastApiCallTime: Record<string, number> = {}; // taskId -> timestamp
-  private apiCallInterval: number = 0; // 禁用任务级别限流
+  private apiCallInterval: number = 5000; // 任务级别限流：5秒间隔
   private fallbackToLocalTime: Record<string, number> = {}; // taskId -> fallback timestamp
-  private fallbackToLocalTimeout: number = 0; // 禁用回退机制
+  private fallbackToLocalTimeout: number = 30000; // 回退机制：30秒后重试API
   private consecutiveFailures: Record<string, number> = {}; // taskId -> failure count
-  private maxConsecutiveFailures: number = 10; // 增加最大失败次数
+  private maxConsecutiveFailures: number = 3; // 最大失败次数后切换到本地
   private globalLastApiCallTime: number = 0; // 全局API调用时间，用于全局限流
-  private globalApiCallInterval: number = 0; // 禁用全局限流
+  private globalApiCallInterval: number = 2000; // 全局限流：2秒间隔
 
   constructor() {
     const config = getApiConfig();

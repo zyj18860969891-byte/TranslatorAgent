@@ -757,7 +757,7 @@ app.post('/api/v1/video/process', async (req, res) => {
       operation,
       targetLanguage,
       timestamp: new Date().toISOString(),
-      modelUsed: 'qwen3-omni-flash-realtime'
+      modelUsed: 'qwen3-omni-flash'
     }, '视频处理完成'));
   } catch (error) {
     console.error('视频处理错误:', error);

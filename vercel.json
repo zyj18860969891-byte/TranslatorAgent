@@ -20,7 +20,7 @@
     }
   ],
   "env": {
-    "VITE_API_BASE_URL": "https://translatoragent-production.up.railway.app",
+    "VITE_API_BASE_URL": "https://intuitive-bravery.railway.app",
     "VITE_ENABLE_API_INTEGRATION": "true"
   }
 }

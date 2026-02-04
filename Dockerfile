@@ -4,17 +4,31 @@ FROM node:20-alpine
 # 设置工作目录
 WORKDIR /app
 
-# 复制package.json和package-lock.json
+# 安装Python和pip
+RUN apk add --no-cache python3 py3-pip && ln -sf python3 /usr/bin/python
+
+# 复制Node.js后端依赖
 COPY backend_api/package.json backend_api/package-lock.json ./
 
-# 安装依赖
+# 安装Node.js依赖
 RUN npm install
 
-# 复制剩余的应用代码
-COPY backend_api/ ./
+# 复制Python处理服务依赖
+COPY processing_service/requirements.txt ./
+
+# 安装Python依赖
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制应用代码
+COPY backend_api/ ./backend_api/
+COPY processing_service/ ./processing_service/
 
 # 暴露端口
-EXPOSE 8000
+EXPOSE 8000 8001
 
-# 启动应用 - 使用index.js作为入口点
-CMD ["node", "index.js"]
+# 启动脚本
+COPY start-all.sh ./
+RUN chmod +x start-all.sh
+
+# 启动所有服务
+CMD ["./start-all.sh"]

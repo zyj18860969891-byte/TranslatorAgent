@@ -259,12 +259,12 @@ export class APIClient {
 
   // 创建任务
   async createTask(request: TaskCreationRequest): Promise<ApiResponse<TaskCreationResponse>> {
-    return this.post(`/api/v1/tasks`, request);
+    return this.post(`/api/v1/process/tasks`, request);
   }
 
   // 获取任务状态
   async getTaskStatus(taskId: string): Promise<ApiResponse<TaskStatusResponse>> {
-    return this.get(`/tasks/${taskId}`);
+    return this.get(`/api/v1/process/tasks/${taskId}`);
   }
 
   // 获取模块任务列表
@@ -273,37 +273,37 @@ export class APIClient {
     if (module) params.append('task_type', module);
     if (status) params.append('status', status);
     
-    return this.get(`/tasks?${params.toString()}`);
+    return this.get(`/api/v1/process/tasks?${params.toString()}`);
   }
 
   // 取消任务
   async cancelTask(taskId: string): Promise<ApiResponse<void>> {
-    return this.post(`/tasks/${taskId}/cancel`, {});
+    return this.post(`/api/v1/process/tasks/${taskId}/cancel`, {});
   }
 
   // 删除任务
   async deleteTask(taskId: string): Promise<ApiResponse<void>> {
-    return this.delete(`/tasks/${taskId}`);
+    return this.delete(`/api/v1/process/tasks/${taskId}`);
   }
 
   // 更新任务状态
   async updateTaskStatus(taskId: string, _module: string, updates: any): Promise<ApiResponse<any>> {
-    return this.post(`/tasks/${taskId}/status`, updates);
+    return this.post(`/api/v1/process/tasks/${taskId}/status`, updates);
   }
 
   // 更新任务进度
   async updateTaskProgress(taskId: string, module: string, progress: any): Promise<ApiResponse<any>> {
-    return this.post(`/tasks/${taskId}/progress`, { module, progress });
+    return this.post(`/api/v1/process/tasks/${taskId}/progress`, { module, progress });
   }
 
   // 添加文件到任务
   async addFileToTask(taskId: string, module: string, filePath: string, status: string): Promise<ApiResponse<any>> {
-    return this.post(`/tasks/${taskId}/files`, { module, filePath, status });
+    return this.post(`/api/v1/process/tasks/${taskId}/files`, { module, filePath, status });
   }
 
   // 处理任务（触发实际的任务执行）
   async processTask(taskId: string): Promise<ApiResponse<any>> {
-    return this.post(`/api/v1/tasks/${taskId}/process`, {});
+    return this.post(`/api/v1/process/tasks/${taskId}/process`, {});
   }
 
   // 添加到记忆层
