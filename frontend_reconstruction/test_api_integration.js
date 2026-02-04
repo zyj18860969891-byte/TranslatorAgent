@@ -1,4 +1,4 @@
-// 简单的API集成测试脚本
+bushi// 简单的API集成测试脚本
 const API_BASE_URL = 'https://translatoragent-production.up.railway.app';
 
 console.log('开始API集成测试...');

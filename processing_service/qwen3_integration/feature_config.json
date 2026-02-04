@@ -1,0 +1,93 @@
+{
+  "features": {
+    "subtitle_extraction": {
+      "enabled": true,
+      "primary_model": "qwen-turbo",
+      "fallback_model": "qwen-plus",
+      "confidence_threshold": 0.95,
+      "max_frames": 1000,
+      "frame_sample_rate": 2,
+      "detection_threshold": 0.01
+    },
+    "video_translation": {
+      "enabled": true,
+      "primary_model": "qwen-turbo",
+      "fallback_model": "qwen-plus",
+      "embedding_support": "qwen-turbo",
+      "realtime_mode": true,
+      "batch_size": 10,
+      "max_retries": 3
+    },
+    "emotion_analysis": {
+      "enabled": true,
+      "primary_model": "qwen-turbo",
+      "fallback_model": "qwen-plus",
+      "confidence_threshold": 0.8,
+      "emotion_types": ["joy", "sadness", "anger", "fear", "surprise", "disgust", "neutral"],
+      "context_analysis": true,
+      "instruction": "请分析以下文本的情感倾向，并给出详细分析："
+    },
+    "batch_processing": {
+      "enabled": true,
+      "primary_model": "qwen-turbo",
+      "fallback_model": "qwen-plus",
+      "max_workers": 4,
+      "max_file_size": 100,
+      "supported_formats": [".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv"],
+      "temp_dir": "temp",
+      "output_dir": "output"
+    },
+    "subtitle_pressing": {
+      "enabled": true,
+      "primary_model": "qwen-vl-plus",
+      "fallback_model": "qwen-vl-plus",
+      "api_endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+      "style_config": {
+        "font_size": 24,
+        "font_color": "#FFFFFF",
+        "font_family": "Arial",
+        "position": "bottom",
+        "background_color": "#000000",
+        "background_opacity": 0.7
+      },
+      "quality": "high",
+      "format": "mp4",
+      "instruction": "请为视频添加字幕，要求："
+    },
+    "subtitle_erasure": {
+      "enabled": true,
+      "primary_model": "qwen-vl-plus",
+      "fallback_model": "qwen-vl-plus",
+      "api_endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+      "style_config": {
+        "font_size": 24,
+        "font_color": "#FFFFFF",
+        "font_family": "Arial",
+        "position": "bottom",
+        "background_color": "#000000",
+        "background_opacity": 0.7
+      },
+      "quality": "high",
+      "format": "mp4",
+      "instruction": "请擦除图像中的字幕，要求："
+    }
+  },
+  "api_settings": {
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "timeout": 30,
+    "max_retries": 3,
+    "retry_delay": 1.0,
+    "rate_limit": 100
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "qwen3_integration.log",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
+  "cache": {
+    "enabled": true,
+    "max_size": 1000,
+    "ttl": 3600,
+    "cache_dir": "cache"
+  }
+}

@@ -1,0 +1,30 @@
+# Python处理服务Railway配置文件
+# 指定Python应用的启动命令和构建配置
+
+[build]
+# 构建命令
+command = "pip install -r requirements.txt"
+
+[deploy]
+# 启动命令
+start = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
+[env]
+# 环境变量配置
+PORT = "8001"
+PYTHONUNBUFFERED = "1"
+DASHSCOPE_API_KEY = "your_dashscope_api_key_here"
+ALLOWED_ORIGINS = "https://your-vercel-domain.vercel.app"
+
+# 指定Python运行时
+[build.runner]
+runtime = "python"
+
+# Railway会自动检测以下文件：
+# - railway.toml (此配置文件)
+# - requirements.txt (Python依赖)
+# - app/main.py (主应用文件)
+# - app/routes.py (路由文件)
+# - config/settings.py (配置文件)
+
+# 如果Railway无法自动检测，可以使用此配置明确指定

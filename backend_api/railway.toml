@@ -13,6 +13,7 @@ start = "node index.js"
 # 环境变量配置
 PORT = "8000"
 NODE_ENV = "production"
+PYTHON_PROCESSING_SERVICE = "https://intuitive-bravery.railway.app"
 
 # 指定Node.js运行时
 [build.runner]

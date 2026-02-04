@@ -17,6 +17,23 @@
 **修改文件**:
 - `frontend_reconstruction/src/utils/ApiFileSystemStateMachine.ts`
 
+### 2. Python处理服务部署
+**问题**: ECONNREFUSED错误，Python处理服务未部署
+
+**解决方案**:
+- 创建独立的Python处理服务（FastAPI + Qwen3）
+- 添加Railway部署配置（processing_service/railway.toml）
+- 更新后端配置以调用Python服务
+- 创建部署脚本和检查工具
+
+**修改文件**:
+- `processing_service/` - 完整的Python处理服务
+- `backend_api/server.js` - 添加Python服务调用逻辑
+- `backend_api/railway.toml` - 添加PYTHON_PROCESSING_SERVICE环境变量
+- `PROCESSING_SERVICE_DEPLOYMENT_GUIDE.md` - 详细部署指南
+- `quick_deploy_processing.py` - 快速部署脚本
+- `check_deployment_status.py` - 部署状态检查
+
 ### 2. 文件大小限制提升
 **问题**: 400 "文件大小超过限制 (10MB)" 错误
 
@@ -62,8 +79,12 @@ e0528b14 fix: 修复API错误 - 429限流、404端点、400文件大小限制
 ## 部署状态
 
 - ✅ **GitHub**: 所有更改已推送到 `main` 分支
-- ⏳ **Railway**: 后端自动部署（基于 `.railway.toml` 配置）
-- ⏳ **Vercel**: 前端自动部署（基于 `vercel.json` 配置）
+- ✅ **Railway 后端**: 已部署并运行正常
+- ✅ **Python 处理服务**: 已成功部署到Railway
+  - 服务URL: https://intuitive-bravery.railway.app
+  - 状态: 运行中
+  - 待设置: DASHSCOPE_API_KEY环境变量以启用真实AI处理
+- ❌ **Vercel 前端**: 需要修复并重新部署
 
 ## 验证步骤
 
@@ -72,15 +93,28 @@ e0528b14 fix: 修复API错误 - 429限流、404端点、400文件大小限制
 curl https://translatoragent-production.up.railway.app/api/health
 ```
 
-### 2. 检查前端部署状态
+### 2. 检查Python处理服务（部署后）
+```bash
+# 替换为实际的Python服务URL
+curl https://your-processing-service.railway.app/health
+curl https://your-processing-service.railway.app/docs
+```
+
+### 3. 检查前端部署状态
 访问: https://translator-agent-rosy.vercel.app
 
-### 3. 测试文件上传
+### 4. 测试文件上传
 - 上传小于10GB的文件
 - 验证无400错误
 - 验证文件上传成功
 
-### 4. 监控API调用
+### 5. 测试完整工作流
+- 创建任务
+- 上传文件
+- 触发处理（应调用Python服务）
+- 检查处理结果
+
+### 6. 监控API调用
 - 打开浏览器开发者工具
 - 观察网络请求
 - 确认无429错误
@@ -92,7 +126,9 @@ curl https://translatoragent-production.up.railway.app/api/health
 ✅ **404错误**: 已解决（API端点匹配）
 ✅ **400错误**: 已解决（支持大文件上传）
 ✅ **构建错误**: 已解决（Vercel构建成功）
-✅ **部署**: Railway和Vercel自动部署完成
+✅ **部署**: Railway后端已部署，Python处理服务待部署
+✅ **Python服务**: 部署后应能正常处理AI任务
+✅ **ECONNREFUSED**: 部署Python服务后应解决
 
 ## 环境变量配置
 

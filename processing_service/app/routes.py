@@ -7,8 +7,21 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import Dict, Any, List
 import logging
 
-from ..models.task_processor import TaskProcessor
-from ..utils.validators import validate_task_data
+# 添加app目录到路径
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+
+# 安全导入OpenCV，处理缺失的系统库
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError as e:
+    CV2_AVAILABLE = False
+    print(f"OpenCV导入失败: {e}")
+
+from models.task_processor import TaskProcessor
+from utils.validators import validate_task_data
 
 logger = logging.getLogger(__name__)
 

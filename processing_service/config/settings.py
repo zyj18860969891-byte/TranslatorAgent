@@ -3,6 +3,7 @@
 """
 
 import os
+import json
 from typing import List
 from pydantic_settings import BaseSettings
 
@@ -15,11 +16,7 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # CORS配置
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "https://translator-agent-*.vercel.app",
-        "http://localhost:8080"
-    ]
+    ALLOWED_ORIGINS: List[str] = []
     
     # Qwen3配置
     DASHSCOPE_API_KEY: str = os.getenv("DASHSCOPE_API_KEY", "")
@@ -43,6 +40,25 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
     OUTPUT_DIR: str = os.getenv("OUTPUT_DIR", "./outputs")
     TEMP_DIR: str = os.getenv("TEMP_DIR", "./temp")
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # 处理ALLOWED_ORIGINS环境变量
+        origins = os.getenv("ALLOWED_ORIGINS", "")
+        if origins:
+            try:
+                # 尝试解析JSON格式
+                self.ALLOWED_ORIGINS = json.loads(origins)
+            except json.JSONDecodeError:
+                # 如果JSON解析失败，尝试按逗号分割
+                self.ALLOWED_ORIGINS = [origin.strip() for origin in origins.split(",") if origin.strip()]
+        else:
+            # 默认值
+            self.ALLOWED_ORIGINS = [
+                "http://localhost:3000",
+                "https://translator-agent-*.vercel.app",
+                "http://localhost:8080"
+            ]
     
     class Config:
         env_file = ".env"

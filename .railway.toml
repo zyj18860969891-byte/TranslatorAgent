@@ -1,9 +1,0 @@
-[build]
-dockerfilePath = "Dockerfile"
-
-[deploy]
-command = "cd backend_api && node index.js"
-
-[env]
-NODE_ENV = "production"
-PORT = "8000"

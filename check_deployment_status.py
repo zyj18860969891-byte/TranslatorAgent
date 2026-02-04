@@ -7,11 +7,14 @@
 import requests
 import time
 import sys
+import os
 from datetime import datetime
+from pathlib import Path
 
 # 配置
 RAILWAY_URL = "https://translatoragent-production.up.railway.app"
 VERCEL_URL = "https://translator-agent-rosy.vercel.app"  # 从CORS配置中推断
+PYTHON_SERVICE_URL = "https://intuitive-bravery.railway.app"  # Python处理服务实际URL
 
 class Colors:
     GREEN = '\033[92m'
@@ -78,6 +81,70 @@ def check_api_endpoints(base_url):
     
     return all_ok
 
+def check_python_service():
+    """检查Python处理服务状态"""
+    log(f"🔍 检查 Python 处理服务...", Colors.BLUE)
+    
+    # 检查必要文件
+    required_files = [
+        "processing_service/app/main.py",
+        "processing_service/app/routes.py",
+        "processing_service/config/settings.py",
+        "processing_service/requirements.txt",
+        "processing_service/railway.toml"
+    ]
+    
+    all_files_exist = True
+    for file_path in required_files:
+        if Path(file_path).exists():
+            log(f"  ✅ {file_path}", Colors.GREEN)
+        else:
+            log(f"  ❌ {file_path}", Colors.RED)
+            all_files_exist = False
+    
+    # 检查环境变量（本地检查，实际值在Railway中）
+    log(f"🔍 检查环境变量...", Colors.BLUE)
+    # 注意：这些环境变量在Railway中设置，本地可能不存在
+    dashscope_key = os.getenv("DASHSCOPE_API_KEY")
+    python_service_url = os.getenv("PYTHON_PROCESSING_SERVICE")
+    
+    if dashscope_key:
+        log(f"  ✅ DASHSCOPE_API_KEY (本地已设置)", Colors.GREEN)
+    else:
+        log(f"  ⚠️  DASHSCOPE_API_KEY (本地未设置，应在Railway中设置)", Colors.YELLOW)
+    
+    if python_service_url:
+        log(f"  ✅ PYTHON_PROCESSING_SERVICE (本地已设置: {python_service_url})", Colors.GREEN)
+    else:
+        log(f"  ⚠️  PYTHON_PROCESSING_SERVICE (本地未设置，应在Railway中设置)", Colors.YELLOW)
+    
+    # 对于部署检查，我们主要关注服务是否可访问，而不是本地环境变量
+    all_env_set = True  # 不强制要求本地环境变量
+    
+    # 检查Python服务端点
+    log(f"🔍 检查 Python 服务端点...", Colors.BLUE)
+    
+    endpoints = [
+        ("/health", "健康检查", [200]),
+        ("/docs", "API文档", [200, 404]),  # /docs可能不存在，404也是正常的
+        ("/", "根端点", [200]),
+    ]
+    
+    all_endpoints_ok = True
+    for endpoint, name, expected_codes in endpoints:
+        try:
+            response = requests.get(f"{PYTHON_SERVICE_URL}{endpoint}", timeout=10)
+            if response.status_code in expected_codes:
+                log(f"  ✅ {name} ({endpoint}): {response.status_code}", Colors.GREEN)
+            else:
+                log(f"  ❌ {name} ({endpoint}): {response.status_code}", Colors.RED)
+                all_endpoints_ok = False
+        except Exception as e:
+            log(f"  ❌ {name} ({endpoint}): {str(e)}", Colors.RED)
+            all_endpoints_ok = False
+    
+    return all_files_exist and all_env_set and all_endpoints_ok
+
 def main():
     """主函数"""
     log("=" * 60, Colors.BOLD)
@@ -96,6 +163,10 @@ def main():
         # 检查API端点
         endpoints_ok = check_api_endpoints(RAILWAY_URL)
         results.append(("API 端点", endpoints_ok))
+    
+    # 检查Python处理服务
+    python_service_ok = check_python_service()
+    results.append(("Python 处理服务", python_service_ok))
     
     print()
     

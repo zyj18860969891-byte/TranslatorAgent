@@ -14,7 +14,16 @@ from datetime import datetime
 import uuid
 
 # 添加项目根目录到路径
-sys.path.append(str(Path(__file__).parent.parent.parent))
+project_root = str(Path(__file__).parent.parent.parent)
+sys.path.append(project_root)
+
+# 安全导入OpenCV相关模块
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError as e:
+    CV2_AVAILABLE = False
+    logging.warning(f"OpenCV导入失败: {e}")
 
 try:
     from qwen3_integration.video_translator import VideoTranslator
@@ -22,9 +31,11 @@ try:
     from qwen3_integration.emotion_analyzer import EmotionAnalyzer
     from qwen3_integration.config import ConfigManager
     QWEN3_AVAILABLE = True
+    print("✅ Qwen3集成包导入成功")
 except ImportError as e:
     QWEN3_AVAILABLE = False
     logging.warning(f"Qwen3集成包不可用: {e}")
+    print(f"❌ Qwen3集成包导入失败: {e}")
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +57,9 @@ class TaskProcessor:
         """初始化Qwen3组件"""
         try:
             if QWEN3_AVAILABLE:
-                self.config_manager = ConfigManager()
+                # 配置目录在 processing_service/qwen3_integration
+                config_dir = Path(__file__).parent.parent / "qwen3_integration"
+                self.config_manager = ConfigManager(str(config_dir))
                 config = self.config_manager.model_config
                 
                 self.video_translator = VideoTranslator(config)
