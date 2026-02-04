@@ -9,7 +9,7 @@
   "env": {
     "NODE_ENV": "production",
     "PORT": "8000",
-    "PYTHON_PROCESSING_SERVICE": "http://localhost:8001",
+    "PYTHON_PROCESSING_SERVICE": "http://intuitive-bravery.railway.internal:8001",
     "DASHSCOPE_API_KEY": "${DASHSCOPE_API_KEY}"
   }
 }
