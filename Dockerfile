@@ -20,6 +20,9 @@ RUN apk add --no-cache \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# 升级pip并安装构建工具
+RUN pip install --upgrade pip setuptools wheel
+
 # 复制Node.js后端依赖
 COPY backend_api/package.json backend_api/package-lock.json ./
 
