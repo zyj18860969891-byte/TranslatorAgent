@@ -8,7 +8,8 @@
       "max_tokens": 2000,
       "temperature": 0.7,
       "timeout": 30,
-      "enabled": true
+      "enabled": true,
+      "actual_model": "qwen3-omni-flash-2025-12-01"
     },
     "qwen3-vl-rerank": {
       "name": "Qwen3-VL-Rerank",
@@ -18,23 +19,25 @@
       "max_tokens": 1000,
       "temperature": 0.1,
       "timeout": 30,
-      "enabled": true
+      "enabled": true,
+      "actual_model": "qwen3-vl-rerank"
     },
-    "qwen3-embedding": {
-      "name": "Qwen3-Embedding",
-      "type": "embedding",
+    "qwen3-text": {
+      "name": "Qwen3-Text",
+      "type": "text",
       "base_url": "https://dashscope.aliyuncs.com/api/v1",
       "api_key": "${DASHSCOPE_API_KEY}",
       "max_tokens": 8192,
       "temperature": 0.0,
       "timeout": 30,
-      "enabled": true
+      "enabled": true,
+      "actual_model": "qwen3-omni-flash-2025-12-01"
     }
   },
   "architecture": {
     "primary_model": "qwen3-omni-flash-realtime",
     "vision_expert": "qwen3-vl-rerank",
-    "embedding_model": "qwen3-embedding",
+    "text_model": "qwen3-text",
     "fallback_strategy": "auto_route"
   },
   "features": {
@@ -45,7 +48,7 @@
     },
     "video_translation": {
       "primary_model": "qwen3-omni-flash-realtime",
-      "embedding_support": "qwen3-embedding",
+      "text_support": "qwen3-text",
       "realtime_mode": true
     },
     "emotion_analysis": {
@@ -62,51 +65,18 @@
     },
     "localization": {
       "primary_model": "qwen3-omni-flash-realtime",
-      "embedding_support": "qwen3-embedding",
+      "text_support": "qwen3-text",
       "cultural_adaptation": true
     },
     "subtitle_pressing": {
-      "primary_model": "wanx2.1-vace-plus",
+      "primary_model": "qwen3-vl-rerank",
       "engine": "bailian_api",
-      "api_endpoint": "https://dashscope.aliyuncs.com/api/v1/services/video-editing/wanx2.1-vace-plus",
-      "api_key": "${DASHSCOPE_API_KEY}",
-      "api_mode": true,
-      "supported_formats": ["srt", "vtt", "ass", "ssa"],
-      "default_style": {
-        "font_name": "Microsoft YaHei",
-        "font_size": 24,
-        "primary_color": "&H00FFFFFF",
-        "outline_color": "&H00000000",
-        "border_style": 3,
-        "outline": 1,
-        "shadow": 0,
-        "margin_v": 20
-      },
-      "performance": {
-        "processing_speed": "2-5分钟/30分钟视频",
-        "memory_usage": "100MB-500MB",
-        "max_concurrent": 10,
-        "success_rate": 0.98,
-        "cost_per_minute": 42.0
-      }
+      "optimization": true
     },
     "subtitle_erasure": {
-      "primary_model": "image-erase-completion",
-      "engine": "bailian_api",
-      "api_endpoint": "https://dashscope.aliyuncs.com/api/v1/services/image-editing/image-erase-completion",
-      "api_key": "${DASHSCOPE_API_KEY}",
-      "api_mode": true,
-      "detection_method": "mask_based",
-      "mask_optimization": true,
-      "temporal_consistency": true,
-      "performance": {
-        "processing_speed": "5-10分钟/30分钟视频",
-        "memory_usage": "100MB-300MB",
-        "psnr_threshold": 35,
-        "ssim_threshold": 0.95,
-        "cost_per_image": 0.14,
-        "free_quota": 500
-      }
+      "primary_model": "qwen3-vl-rerank",
+      "engine": "opencv",
+      "optimization": true
     }
   }
 }

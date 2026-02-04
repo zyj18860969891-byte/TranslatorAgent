@@ -7,6 +7,7 @@ __version__ = "1.0.0"
 __author__ = "OpenManus Team"
 __email__ = "team@openmanus.com"
 
+from pathlib import Path
 from .subtitle_extractor import SubtitleExtractor
 from .video_translator import VideoTranslator
 from .emotion_analyzer import EmotionAnalyzer
@@ -85,18 +86,29 @@ def check_environment():
         # 检查必需的包
         required_packages = [
             "dashscope",
-            "opencv-python-headless",
-            "numpy",
-            "requests",
+            "cv2",  # OpenCV的正确导入名
+            "numpy", 
+            "requests", 
             "PIL"
         ]
         
         missing_packages = []
         for package in required_packages:
             try:
-                __import__(package.replace("-", "_"))
+                if package == "cv2":
+                    # 特殊处理OpenCV
+                    import cv2
+                else:
+                    __import__(package.replace("-", "_"))
             except ImportError:
-                missing_packages.append(package)
+                # 如果是OpenCV，检查是否有opencv-python-headless
+                if package == "cv2":
+                    try:
+                        import cv2
+                    except ImportError:
+                        missing_packages.append("opencv-python-headless")
+                else:
+                    missing_packages.append(package)
         
         if missing_packages:
             return {

@@ -1,0 +1,16 @@
+{
+  "builder": "DOCKERFILE",
+  "build": {
+    "dockerfilePath": "processing_service/Dockerfile"
+  },
+  "deploy": {
+    "command": "cd processing_service && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "8001",
+    "PYTHONPATH": "/app/processing_service",
+    "DASHSCOPE_API_KEY": "${DASHSCOPE_API_KEY}",
+    "PYTHON_PROCESSING_SERVICE": "http://localhost:8001"
+  }
+}

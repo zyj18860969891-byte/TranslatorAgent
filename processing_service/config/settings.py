@@ -26,9 +26,9 @@ class Settings(BaseSettings):
     DASHSCOPE_RETRY_DELAY: int = int(os.getenv("DASHSCOPE_RETRY_DELAY", "1"))
     
     # 模型配置
-    PRIMARY_MODEL: str = os.getenv("PRIMARY_MODEL", "qwen3-omni-flash-realtime")
-    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "qwen3-embedding")
-    SUBTITLE_MODEL: str = os.getenv("SUBTITLE_MODEL", "qwen3-vl-rerank")
+    PRIMARY_MODEL: str = os.getenv("PRIMARY_MODEL", "qwen3-omni-flash")
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "qwen3-text")
+    SUBTITLE_MODEL: str = os.getenv("SUBTITLE_MODEL", "qwen3-vision")
     
     # 处理配置
     MAX_CONCURRENT_REQUESTS: int = int(os.getenv("MAX_CONCURRENT_REQUESTS", "5"))

@@ -87,8 +87,8 @@ class ConfigManager:
         """加载默认配置"""
         self.model_config = {
             "models": {
-                "qwen3-omni-flash-realtime": {
-                    "name": "Qwen3-Omni-Flash-Realtime",
+                "qwen3-omni-flash": {
+                    "name": "Qwen3-Omni-Flash",
                     "type": "realtime",
                     "base_url": "https://dashscope.aliyuncs.com/api/v1",
                     "api_key": "${DASHSCOPE_API_KEY}",
@@ -97,8 +97,8 @@ class ConfigManager:
                     "timeout": 30,
                     "enabled": False
                 },
-                "qwen3-vl-rerank": {
-                    "name": "Qwen3-VL-Rerank",
+                "qwen3-vision": {
+                    "name": "Qwen3-Vision",
                     "type": "vision",
                     "base_url": "https://dashscope.aliyuncs.com/api/v1",
                     "api_key": "${DASHSCOPE_API_KEY}",
@@ -107,9 +107,9 @@ class ConfigManager:
                     "timeout": 30,
                     "enabled": True
                 },
-                "qwen3-embedding": {
-                    "name": "Qwen3-Embedding",
-                    "type": "embedding",
+                "qwen3-text": {
+                    "name": "Qwen3-Text",
+                    "type": "text",
                     "base_url": "https://dashscope.aliyuncs.com/api/v1",
                     "api_key": "${DASHSCOPE_API_KEY}",
                     "max_tokens": 8192,
@@ -123,27 +123,27 @@ class ConfigManager:
         self.feature_config = {
             "features": {
                 "subtitle_extraction": {
-                    "primary_model": "qwen3-vl-rerank",
-                    "fallback_model": "qwen3-omni-flash-realtime",
+                    "primary_model": "qwen3-vision",
+                    "fallback_model": "qwen3-omni-flash",
                     "confidence_threshold": 0.95,
                     "supported_formats": ["srt", "vtt", "ass", "ssa"],
                     "max_text_length": 500
                 },
                 "video_translation": {
-                    "primary_model": "qwen3-omni-flash-realtime",
-                    "embedding_support": "qwen3-embedding",
+                    "primary_model": "qwen3-omni-flash",
+                    "embedding_support": "qwen3-text",
                     "realtime_mode": True,
                     "batch_size": 10,
                     "max_concurrent_requests": 5
                 },
                 "emotion_analysis": {
-                    "primary_model": "qwen3-omni-flash-realtime",
+                    "primary_model": "qwen3-omni-flash",
                     "emotion_types": ["joy", "sadness", "anger", "fear", "surprise", "disgust", "neutral"],
                     "confidence_threshold": 0.8
                 },
                 "localization": {
-                    "primary_model": "qwen3-omni-flash-realtime",
-                    "embedding_support": "qwen3-embedding",
+                    "primary_model": "qwen3-omni-flash",
+                    "embedding_support": "qwen3-text",
                     "cultural_adaptation": True,
                     "target_cultures": ["chinese", "japanese", "korean", "western"]
                 }
@@ -447,7 +447,7 @@ def check_model_availability() -> Dict[str, Any]:
         if not api_key:
             return {
                 "available": [],
-                "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
+                "unavailable": ["qwen3-omni-flash", "qwen3-vision", "qwen3-text"],
                 "error": "未配置DASHSCOPE_API_KEY"
             }
         
@@ -457,74 +457,95 @@ def check_model_availability() -> Dict[str, Any]:
         }
         
         try:
-            response = requests.get(f"{base_url}/compatible-mode/v1/models", headers=headers, timeout=10)
+            logger.info(f"正在请求模型列表: {base_url}/api/v1/models")
+            response = requests.get(f"{base_url}/api/v1/models", headers=headers, timeout=10)
+            logger.info(f"API响应状态码: {response.status_code}")
             
             if response.status_code == 200:
-                models_data = response.json()
+                # 初始化模型列表
                 available_models = []
                 unavailable_models = []
                 
                 target_models = [
-                    "qwen3-omni-flash-realtime",
-                    "qwen3-vl-rerank",
-                    "qwen3-embedding"
+                    "qwen3-omni-flash",  # 将匹配 qwen3-omni-flash-2025-12-01
+                    "qwen3-vision",     # 精确匹配 qwen3-vision 或其他视觉模型
+                    "qwen3-text"        # 将尝试匹配任何qwen3文本模型
                 ]
                 
-                # 检查API响应格式
-                if 'data' in models_data and isinstance(models_data['data'], list):
-                    # OpenAI兼容模式格式 - 使用 'id' 字段
-                    models_list = models_data['data']
+                try:
+                    models_data = response.json()
+                    logger.info(f"API响应结构: {list(models_data.keys())}")
+                    
+                    # 提取模型列表 - 支持多种响应格式
+                    models_list = []
+                    if 'output' in models_data and 'models' in models_data['output']:
+                        # DashScope API格式
+                        models_list = models_data['output']['models']
+                        logger.info(f"检测到DashScope API格式，找到 {len(models_list)} 个模型")
+                    elif 'data' in models_data and isinstance(models_data['data'], list):
+                        # OpenAI兼容模式格式
+                        models_list = models_data['data']
+                        logger.info(f"检测到OpenAI兼容格式，找到 {len(models_list)} 个模型")
+                    elif 'models' in models_data and isinstance(models_data['models'], list):
+                        # 原始格式
+                        models_list = models_data['models']
+                        logger.info(f"检测到原始格式，找到 {len(models_list)} 个模型")
+                    else:
+                        # 未知格式，假设所有模型都不可用
+                        logger.warning(f"未知的API响应格式: {list(models_data.keys())}")
+                        unavailable_models = target_models.copy()
+                        return {
+                            "available": available_models,
+                            "unavailable": unavailable_models,
+                            "error": f"未知的API响应格式: {list(models_data.keys())}"
+                        }
+                    
+                    # 检查每个目标模型的可用性
                     for model_id in target_models:
                         model_found = False
-                        for model in models_list:
-                            if model_id in model.get('id', ''):
-                                model_found = True
-                                available_models.append(model_id)
-                                break
                         
-                        if not model_found:
-                            unavailable_models.append(model_id)
+                        for model in models_list:
+                            model_id_field = model.get('id', model.get('model', ''))
                             
-                elif 'models' in models_data and isinstance(models_data['models'], list):
-                    # 原始格式 - 使用 'model' 字段
-                    models_list = models_data['models']
-                    for model_id in target_models:
-                        model_found = False
-                        for model in models_list:
-                            if model_id in model.get('model', ''):
-                                model_found = True
+                            # 精确匹配或部分匹配
+                            if model_id in model_id_field:
+                                logger.info(f"找到模型: {model_id} -> {model_id_field}")
                                 available_models.append(model_id)
+                                model_found = True
                                 break
                         
                         if not model_found:
+                            logger.warning(f"未找到模型: {model_id}")
                             unavailable_models.append(model_id)
-                else:
-                    # 未知格式，假设所有模型都不可用
-                    unavailable_models = target_models.copy()
-                
-                return {
-                    "available": available_models,
-                    "unavailable": unavailable_models,
-                    "total_models": len(available_models) + len(unavailable_models)
-                }
-            else:
-                return {
-                    "available": [],
-                    "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
-                    "error": f"API请求失败: {response.status_code}"
-                }
-                
+                    
+                    logger.info(f"模型检查完成: {len(available_models)} 个可用, {len(unavailable_models)} 个不可用")
+                    
+                    return {
+                        "available": available_models,
+                        "unavailable": unavailable_models,
+                        "total_models": len(available_models) + len(unavailable_models)
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"处理模型数据失败: {e}")
+                    return {
+                        "available": [],
+                        "unavailable": target_models,
+                        "error": f"处理模型数据失败: {e}"
+                    }
+                    
         except requests.RequestException as e:
+            logger.error(f"网络请求异常: {e}")
             return {
                 "available": [],
-                "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
+                "unavailable": ["qwen3-omni-flash", "qwen3-vision", "qwen3-text"],
                 "error": f"网络请求失败: {str(e)}"
             }
         
     except Exception as e:
         return {
             "available": [],
-            "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
+            "unavailable": ["qwen3-omni-flash", "qwen3-vision", "qwen3-text"],
             "error": f"检查模型可用性失败: {str(e)}"
         }
 

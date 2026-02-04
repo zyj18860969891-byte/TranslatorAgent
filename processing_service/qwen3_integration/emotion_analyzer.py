@@ -1,6 +1,6 @@
 """
 Qwen3情感分析器
-基于Qwen3-Omni-Flash-Realtime模型的智能情感分析工具
+基于Qwen3-Omni-Flash模型的智能情感分析工具
 """
 
 import os
@@ -31,7 +31,7 @@ class EmotionAnalyzer:
             config: 配置字典，包含模型参数和设置
         """
         self.config = config or self._load_default_config()
-        self.model_name = self.config.get("primary_model", "qwen3-omni-flash-realtime")
+        self.model_name = self.config.get("primary_model", "qwen3-omni-flash")
         self.emotion_types = self.config.get("emotion_types", [
             "joy", "sadness", "anger", "fear", "surprise", "disgust", "neutral"
         ])

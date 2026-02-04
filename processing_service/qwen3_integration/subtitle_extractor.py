@@ -1,6 +1,6 @@
 """
 Qwen3字幕提取器
-基于Qwen3-VL-Rerank模型的高精度字幕提取工具
+基于Qwen3-Vision模型的高精度字幕提取工具
 """
 
 import os
@@ -41,7 +41,7 @@ class SubtitleExtractor:
             config: 配置字典，包含模型参数和设置
         """
         self.config = config or self._load_default_config()
-        self.model_name = self.config.get("primary_model", "qwen3-vl-rerank")
+        self.model_name = self.config.get("primary_model", "qwen3-vision")
         self.fallback_model = self.config.get("fallback_model", None)
         self.confidence_threshold = self.config.get("confidence_threshold", 0.95)
         self.supported_formats = self.config.get("supported_formats", ["srt", "vtt", "ass", "ssa"])
@@ -58,7 +58,7 @@ class SubtitleExtractor:
     def _load_default_config(self) -> Dict[str, Any]:
         """加载默认配置"""
         return {
-            "primary_model": "qwen3-vl-rerank",
+            "primary_model": "qwen3-vision",
             "fallback_model": None,
             "confidence_threshold": 0.95,
             "supported_formats": ["srt", "vtt", "ass", "ssa"],
@@ -229,7 +229,7 @@ class SubtitleExtractor:
                 # 预处理图像
                 processed_image = self._preprocess_image(frame["image"])
                 
-                # 使用Qwen3-VL-Rerank进行文本识别
+                # 使用Qwen3-Vision进行文本识别
                 text_result = self._recognize_text_with_qwen(processed_image)
                 
                 if text_result and text_result.get("text"):
@@ -291,7 +291,7 @@ class SubtitleExtractor:
     
     def _recognize_text_with_qwen(self, image: np.ndarray) -> Optional[Dict[str, Any]]:
         """
-        使用Qwen3-VL-Rerank模型识别文本
+        使用Qwen3-Vision模型识别文本
         
         Args:
             image: 图像数组
@@ -341,7 +341,7 @@ class SubtitleExtractor:
                 if result.get("output", {}).get("text"):
                     return {
                         "text": result["output"]["text"].strip(),
-                        "confidence": 0.95,  # Qwen3-VL-Rerank通常有很高的置信度
+                        "confidence": 0.95,  # Qwen3-Vision通常有很高的置信度
                         "model": self.model_name
                     }
                 else:

@@ -9,7 +9,8 @@
   },
   "env": {
     "NODE_ENV": "production",
-    "PORT": "8000"
+    "PORT": "8000",
+    "PYTHON_PROCESSING_SERVICE": "http://intuitive-bravery.railway.internal:8001"
   },
   "rootDirectory": "backend_api"
 }

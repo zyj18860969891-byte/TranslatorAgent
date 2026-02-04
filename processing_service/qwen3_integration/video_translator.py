@@ -1,6 +1,6 @@
 """
 Qwen3视频翻译器
-基于Qwen3-Omni-Flash-Realtime模型的智能视频翻译工具
+基于Qwen3-Omni-Flash模型的智能视频翻译工具
 """
 
 import os
@@ -34,8 +34,8 @@ class VideoTranslator:
             config: 配置字典，包含模型参数和设置
         """
         self.config = config or self._load_default_config()
-        self.model_name = self.config.get("primary_model", "qwen3-omni-flash-realtime")
-        self.embedding_model = self.config.get("embedding_model", "qwen3-embedding")
+        self.model_name = self.config.get("primary_model", "qwen3-omni-flash")
+        self.embedding_model = self.config.get("embedding_model", "qwen3-text")
         self.realtime_mode = self.config.get("realtime_mode", True)
         self.batch_size = self.config.get("batch_size", 10)
         self.max_concurrent_requests = self.config.get("max_concurrent_requests", 5)
@@ -59,8 +59,8 @@ class VideoTranslator:
     def _load_default_config(self) -> Dict[str, Any]:
         """加载默认配置"""
         return {
-            "primary_model": "qwen3-omni-flash-realtime",
-            "embedding_model": "qwen3-embedding",
+            "primary_model": "qwen3-omni-flash",
+            "embedding_model": "qwen3-text",
             "realtime_mode": True,
             "batch_size": 10,
             "max_concurrent_requests": 5,

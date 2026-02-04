@@ -4,10 +4,12 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "command": "cd backend_api && node index.js"
+    "command": "./start-all.sh"
   },
   "env": {
     "NODE_ENV": "production",
-    "PORT": "8000"
+    "PORT": "8000",
+    "PYTHON_PROCESSING_SERVICE": "http://localhost:8001",
+    "DASHSCOPE_API_KEY": "${DASHSCOPE_API_KEY}"
   }
 }
