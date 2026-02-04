@@ -412,7 +412,9 @@ def get_config_manager() -> ConfigManager:
     """获取全局配置管理器实例"""
     global _config_manager
     if _config_manager is None:
-        _config_manager = ConfigManager()
+        # 使用当前模块所在目录作为配置目录
+        config_dir = Path(__file__).parent
+        _config_manager = ConfigManager(str(config_dir))
     return _config_manager
 
 def load_config(config_dir: str = ".") -> Dict[str, Any]:
