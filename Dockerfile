@@ -14,14 +14,22 @@ RUN apk add --no-cache \
     freetype-dev \
     zlib-dev \
     jpeg-dev \
+    libpng-dev \
+    tiff-dev \
+    jasper-dev \
+    openexr-dev \
+    libwebp-dev \
+    lapack-dev \
+    gfortran \
     && ln -sf python3 /usr/bin/python
 
 # 创建Python虚拟环境
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# 升级pip并安装构建工具
-RUN pip install --upgrade pip setuptools wheel
+# 升级pip并安装构建工具（使用兼容的setuptools版本）
+RUN pip install --upgrade pip
+RUN pip install "setuptools<80" wheel
 
 # 复制Node.js后端依赖
 COPY backend_api/package.json backend_api/package-lock.json ./
