@@ -16,8 +16,10 @@ echo "所有服务已启动:"
 echo "- Python处理服务 (PID: $PYTHON_PID) 运行在端口 8001"
 echo "- Node.js后端API (PID: $NODE_PID) 运行在端口 8000"
 
-# 等待任意进程退出
-wait -n
+# 等待任意进程退出（兼容性版本）
+while kill -0 $PYTHON_PID 2>/dev/null && kill -0 $NODE_PID 2>/dev/null; do
+    sleep 1
+done
 
 # 如果任一进程退出，则终止所有进程
 kill $PYTHON_PID $NODE_PID 2>/dev/null
