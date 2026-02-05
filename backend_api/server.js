@@ -30,6 +30,13 @@ const getCorsOrigins = () => {
   // 正则表达式匹配所有translator-agent Vercel子域名
   const vercelDomainPattern = /^https:\/\/translator-agent-.*\.vercel\.app$/;
   
+  // 总是包含Vercel域名，确保前端可以访问
+  const defaultOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    vercelDomainPattern
+  ];
+  
   if (envOrigins) {
     let originsArray = [];
     if (typeof envOrigins === 'string') {
@@ -38,85 +45,46 @@ const getCorsOrigins = () => {
       originsArray = envOrigins;
     }
     
-    // 检查是否已有Vercel域名（精确匹配、通配符字符串或正则表达式）
-    const hasVercelDomain = originsArray.some(origin => {
-      if (origin === 'https://translator-agent-*.vercel.app') {
-        return true;
-      }
-      if (typeof origin === 'string' && origin.includes('vercel.app')) {
-        return true;
-      }
-      if (origin instanceof RegExp) {
-        return origin.test('https://translator-agent-sandy.vercel.app');
-      }
-      return false;
-    });
-    
-    if (!hasVercelDomain) {
-      console.log('[CORS] Auto-adding Vercel domains to allowed origins');
-      originsArray.push(vercelDomainPattern);
-    }
-    
-    return originsArray;
+    // 合并环境变量中的origins和默认origins
+    return [...originsArray, ...defaultOrigins];
   }
   
-  // 默认允许本地开发和所有Vercel子域名
-  return [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    vercelDomainPattern
-  ];
+  return defaultOrigins;
 };
 
-// 动态CORS中间件
-app.use(cors({
-  origin: (origin, callback) => {
+// 简化的CORS中间件 - 允许所有Vercel子域名和本地开发
+const corsOptions = {
+  origin: function(origin, callback) {
     // 允许没有origin的请求（如移动端应用、Postman等）
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = getCorsOrigins();
+    // 允许的源列表
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://translator-agent-*.vercel.app'
+    ];
     
-    console.log(`[CORS] 检查跨域请求: ${origin}`);
-    console.log(`[CORS] 允许的来源:`, allowedOrigins);
-    
-    // 检查origin是否在允许列表中
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (typeof allowedOrigin === 'string') {
-        // 精确字符串匹配
-        if (origin === allowedOrigin) {
-          console.log(`[CORS] 字符串匹配成功: ${origin} === ${allowedOrigin}`);
-          return true;
-        }
-        // 通配符匹配（支持 * 通配符）
-        if (allowedOrigin.includes('*')) {
-          // 将通配符转换为正则表达式
-          const pattern = '^' + allowedOrigin.replace(/\*/g, '.*') + '$';
-          const regex = new RegExp(pattern);
-          const matches = regex.test(origin);
-          if (matches) {
-            console.log(`[CORS] 通配符匹配成功: ${origin} ~ ${pattern}`);
-            return true;
-          }
-        }
-      } else if (allowedOrigin instanceof RegExp) {
-        // 正则表达式匹配
-        const matches = allowedOrigin.test(origin);
-        console.log(`[CORS] 正则匹配: ${origin} ~ ${allowedOrigin} = ${matches}`);
-        return matches;
+    // 检查是否匹配
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (allowed.includes('*')) {
+        // 通配符匹配
+        const pattern = '^' + allowed.replace(/\*/g, '.*') + '$';
+        return new RegExp(pattern).test(origin);
       }
-      return false;
+      return origin === allowed;
     });
     
-    if (isAllowed) {
-      console.log(`[CORS] 允许跨域请求: ${origin}`);
-      callback(null, true);
-    } else {
-      console.log(`[CORS] 拒绝跨域请求: ${origin}`);
-      callback(new Error('不允许的跨域请求'));
-    }
+    console.log(`[CORS] ${origin} -> ${isAllowed ? '✅ 允许' : '❌ 拒绝'}`);
+    callback(null, isAllowed);
   },
-  credentials: true
-}));
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset']
+};
+
+app.use(cors(corsOptions));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
