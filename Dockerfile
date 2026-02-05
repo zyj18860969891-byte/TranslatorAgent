@@ -24,19 +24,18 @@ RUN apt-get update && apt-get install -y \
 # 创建虚拟环境并安装兼容的构建工具
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --upgrade pip
-RUN pip install "setuptools<67" wheel
+# 使用绝对路径确保操作针对虚拟环境
+RUN /opt/venv/bin/pip install --upgrade pip
+RUN /opt/venv/bin/pip install "setuptools<67" wheel
 
 # 复制Python依赖文件并预安装（构建wheel缓存）
 COPY processing_service/requirements.txt ./
 # 验证requirements.txt存在
 RUN ls -la requirements.txt
-# 更新pip到最新版本以确保兼容性
-RUN pip install --upgrade pip setuptools wheel
 # 分步安装依赖，确保uvicorn等核心依赖正确安装
-RUN pip install --no-cache-dir -r requirements.txt
+RUN /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 # 验证关键依赖是否安装成功
-RUN python -c "import uvicorn; import fastapi; print('✓ Dependencies installed successfully')"
+RUN /opt/venv/bin/python -c "import uvicorn; import fastapi; print('✓ Dependencies installed successfully')"
 
 # 第二阶段：构建Node.js依赖
 FROM node:20 AS node-builder
