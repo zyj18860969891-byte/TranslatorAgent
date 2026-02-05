@@ -20,8 +20,8 @@ except ImportError as e:
     CV2_AVAILABLE = False
     print(f"OpenCV导入失败: {e}")
 
-from models.task_processor import TaskProcessor
-from utils.validators import validate_task_data
+from processing_service.models.task_processor import TaskProcessor
+from processing_service.utils.validators import validate_task_data
 
 logger = logging.getLogger(__name__)
 

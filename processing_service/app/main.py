@@ -11,12 +11,12 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# 添加app目录到路径
+# 添加processing_service目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.routes import router as processing_router
-from models.task_processor import TaskProcessor
-from config.settings import Settings
+from processing_service.models.task_processor import TaskProcessor
+from processing_service.config.settings import Settings
 
 # 配置日志
 logging.basicConfig(
