@@ -18,6 +18,7 @@ RUN apk add --no-cache \
     libwebp-dev \
     lapack-dev \
     gfortran \
+    linux-headers \
     && ln -sf python3 /usr/bin/python
 
 # 创建虚拟环境并安装兼容的构建工具
@@ -28,9 +29,8 @@ RUN pip install "setuptools<67" wheel
 
 # 复制Python依赖文件并预安装（构建wheel缓存）
 COPY processing_service/requirements.txt ./
-# 先安装构建依赖（包括scikit-build用于opencv构建）
-RUN pip install --no-cache-dir scikit-build cmake
-RUN pip install --no-cache-dir --no-build-isolation -r requirements.txt
+# 安装依赖（使用预编译wheel，避免opencv构建问题）
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 第二阶段：构建Node.js依赖
 FROM node:20-alpine AS node-builder
