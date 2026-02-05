@@ -506,11 +506,41 @@ def check_model_availability() -> Dict[str, Any]:
                     "total_models": len(available_models) + len(unavailable_models)
                 }
             else:
-                return {
-                    "available": [],
-                    "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
-                    "error": f"API请求失败: {response.status_code}"
-                }
+                # 处理其他HTTP状态码
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get('error', {}).get('message', str(error_data))
+                except:
+                    error_msg = response.text or f"HTTP {response.status_code}"
+                
+                if response.status_code == 401:
+                    logger.error(f"API认证失败: {error_msg}")
+                    return {
+                        "available": [],
+                        "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
+                        "error": f"API认证失败: {error_msg}"
+                    }
+                elif response.status_code == 403:
+                    logger.error(f"API访问被拒绝: {error_msg}")
+                    return {
+                        "available": [],
+                        "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
+                        "error": f"API访问被拒绝: {error_msg}"
+                    }
+                elif response.status_code == 429:
+                    logger.error(f"API请求频率限制: {error_msg}")
+                    return {
+                        "available": [],
+                        "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
+                        "error": f"API请求频率限制: {error_msg}"
+                    }
+                else:
+                    logger.error(f"API请求失败: HTTP {response.status_code} - {error_msg}")
+                    return {
+                        "available": [],
+                        "unavailable": ["qwen3-omni-flash-realtime", "qwen3-vl-rerank", "qwen3-embedding"],
+                        "error": f"API请求失败: HTTP {response.status_code} - {error_msg}"
+                    }
                 
         except requests.RequestException as e:
             return {
