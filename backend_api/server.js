@@ -22,6 +22,45 @@ const PORT = process.env.PORT || 8000;
 
 // 中间件配置
 app.set('trust proxy', 1); // 信任反向代理（Railway等）
+
+// CORS 中间件必须放在最前面，确保预检请求正确处理
+const corsOptions = {
+  origin: function(origin, callback) {
+    // 允许没有origin的请求（如移动端应用、Postman等）
+    if (!origin) return callback(null, true);
+    
+    // 允许的源列表 - 包括所有Vercel子域名
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://translator-agent-*.vercel.app'
+    ];
+    
+    // 检查是否匹配
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (allowed.includes('*')) {
+        // 通配符匹配
+        const pattern = '^' + allowed.replace(/\*/g, '.*') + '$';
+        return new RegExp(pattern).test(origin);
+      }
+      return origin === allowed;
+    });
+    
+    console.log(`[CORS] ${origin} -> ${isAllowed ? '✅ 允许' : '❌ 拒绝'}`);
+    callback(null, isAllowed);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
+  maxAge: 86400 // 预检请求缓存时间（24小时）
+};
+
+app.use(cors(corsOptions));
+
+// 处理OPTIONS预检请求
+app.options('*', cors(corsOptions));
+
 app.use(helmet()); // 安全头
 app.use(compression()); // 压缩
 // 处理 CORS 来源配置
@@ -84,7 +123,6 @@ const corsOptions = {
   exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset']
 };
 
-app.use(cors(corsOptions));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
