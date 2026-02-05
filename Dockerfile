@@ -29,12 +29,12 @@ RUN pip install "setuptools<67" wheel
 
 # 复制Python依赖文件并预安装（构建wheel缓存）
 COPY processing_service/requirements.txt ./
-# 预安装opencv构建所需的依赖（Ubuntu有预编译wheel，不需要编译）
-RUN pip install --no-cache-dir scikit-build cmake
-# 分步安装依赖，先安装非opencv依赖，最后安装opencv
-RUN pip install --no-cache-dir fastapi==0.104.1 uvicorn[standard]==0.24.0 pydantic-settings==2.1.0 dashscope==1.20.0 Pillow==10.4.0 aiohttp==3.9.1 requests==2.31.0 psutil==5.9.6 numpy==1.26.4 python-dotenv==1.0.0 httpx==0.25.2 tqdm==4.66.1 openai==1.3.0
-# 最后安装opencv-python-headless（Ubuntu有预编译wheel，应该很快）
-RUN pip install --no-cache-dir opencv-python-headless==4.8.1.78
+# 验证requirements.txt存在
+RUN ls -la requirements.txt
+# 分步安装依赖，确保uvicorn等核心依赖正确安装
+RUN pip install --no-cache-dir -r requirements.txt
+# 验证安装的Python包
+RUN pip list | grep -E "(uvicorn|fastapi|opencv)"
 
 # 第二阶段：构建Node.js依赖
 FROM node:20 AS node-builder
