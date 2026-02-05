@@ -28,6 +28,8 @@ RUN pip install "setuptools<67" wheel
 
 # 复制Python依赖文件并预安装（构建wheel缓存）
 COPY processing_service/requirements.txt ./
+# 先安装构建依赖（包括scikit-build用于opencv构建）
+RUN pip install --no-cache-dir scikit-build cmake
 RUN pip install --no-cache-dir --no-build-isolation -r requirements.txt
 
 # 第二阶段：构建Node.js依赖
