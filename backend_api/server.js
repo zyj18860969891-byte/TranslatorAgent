@@ -91,38 +91,6 @@ const getCorsOrigins = () => {
   return defaultOrigins;
 };
 
-// 简化的CORS中间件 - 允许所有Vercel子域名和本地开发
-const corsOptions = {
-  origin: function(origin, callback) {
-    // 允许没有origin的请求（如移动端应用、Postman等）
-    if (!origin) return callback(null, true);
-    
-    // 允许的源列表
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'https://translator-agent-*.vercel.app'
-    ];
-    
-    // 检查是否匹配
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (allowed.includes('*')) {
-        // 通配符匹配
-        const pattern = '^' + allowed.replace(/\*/g, '.*') + '$';
-        return new RegExp(pattern).test(origin);
-      }
-      return origin === allowed;
-    });
-    
-    console.log(`[CORS] ${origin} -> ${isAllowed ? '✅ 允许' : '❌ 拒绝'}`);
-    callback(null, isAllowed);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset']
-};
-
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
