@@ -1,25 +1,25 @@
 # 第一阶段：构建Python依赖
-FROM node:20-alpine AS python-builder
+FROM ubuntu:22.04 AS python-builder
 
 # 安装Python和构建依赖
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
-    py3-pip \
-    build-base \
+    python3-pip \
     python3-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    zlib-dev \
-    jpeg-dev \
+    build-essential \
+    cmake \
+    libjpeg-dev \
+    libfreetype6-dev \
+    zlib1g-dev \
     libpng-dev \
-    tiff-dev \
-    jasper-dev \
-    openexr-dev \
+    libtiff-dev \
+    libjasper-dev \
+    libopenexr-dev \
     libwebp-dev \
-    lapack-dev \
+    liblapack-dev \
     gfortran \
-    linux-headers \
-    && ln -sf python3 /usr/bin/python
+    linux-headers-generic \
+    && rm -rf /var/lib/apt/lists/*
 
 # 创建虚拟环境并安装兼容的构建工具
 RUN python -m venv /opt/venv
@@ -29,15 +29,15 @@ RUN pip install "setuptools<67" wheel
 
 # 复制Python依赖文件并预安装（构建wheel缓存）
 COPY processing_service/requirements.txt ./
-# 预安装opencv构建所需的依赖
+# 预安装opencv构建所需的依赖（Ubuntu有预编译wheel，不需要编译）
 RUN pip install --no-cache-dir scikit-build cmake
 # 分步安装依赖，先安装非opencv依赖，最后安装opencv
-RUN pip install --no-cache-dir --no-build-isolation fastapi==0.104.1 uvicorn[standard]==0.24.0 pydantic-settings==2.1.0 dashscope==1.20.0 Pillow==10.4.0 aiohttp==3.9.1 requests==2.31.0 psutil==5.9.6 numpy==1.26.4 python-dotenv==1.0.0 httpx==0.25.2 tqdm==4.66.1 openai==1.3.0
-# 最后安装opencv-python-headless，设置超时时间
-RUN pip install --no-cache-dir --no-build-isolation --timeout=300 opencv-python-headless==4.8.1.78
+RUN pip install --no-cache-dir fastapi==0.104.1 uvicorn[standard]==0.24.0 pydantic-settings==2.1.0 dashscope==1.20.0 Pillow==10.4.0 aiohttp==3.9.1 requests==2.31.0 psutil==5.9.6 numpy==1.26.4 python-dotenv==1.0.0 httpx==0.25.2 tqdm==4.66.1 openai==1.3.0
+# 最后安装opencv-python-headless（Ubuntu有预编译wheel，应该很快）
+RUN pip install --no-cache-dir opencv-python-headless==4.8.1.78
 
 # 第二阶段：构建Node.js依赖
-FROM node:20-alpine AS node-builder
+FROM node:20 AS node-builder
 
 # 设置工作目录
 WORKDIR /app
@@ -47,21 +47,20 @@ COPY backend_api/package.json backend_api/package-lock.json ./
 RUN npm install
 
 # 第三阶段：运行镜像
-FROM node:20-alpine
+FROM node:20
 
 # 安装Python运行时依赖（仅运行时库，不包含构建工具）
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
-    libjpeg-turbo \
-    freetype \
-    zlib \
-    jpeg \
-    libpng \
-    tiff \
-    jasper \
-    openexr \
-    libwebp \
-    && ln -sf python3 /usr/bin/python
+    libjpeg-dev \
+    libfreetype6-dev \
+    zlib1g-dev \
+    libpng-dev \
+    libtiff-dev \
+    libjasper-dev \
+    libopenexr-dev \
+    libwebp-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # 从构建阶段复制预安装的Python虚拟环境
 COPY --from=python-builder /opt/venv /opt/venv
