@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     # CORS配置
     ALLOWED_ORIGINS: List[str] = []
     
+    # 允许额外的环境变量
+    
     # Qwen3配置
     DASHSCOPE_API_KEY: str = os.getenv("DASHSCOPE_API_KEY", "")
     DASHSCOPE_BASE_URL: str = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com")
@@ -62,6 +64,7 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 # 全局配置实例
 settings = Settings()

@@ -12,11 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # 添加app目录到路径
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.routes import router as processing_router
-from app.models.task_processor import TaskProcessor
-from app.config.settings import Settings
+from models.task_processor import TaskProcessor
+from config.settings import Settings
 
 # 配置日志
 logging.basicConfig(
