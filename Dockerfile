@@ -1,15 +1,8 @@
 # 第一阶段：构建Python依赖
-FROM ubuntu:22.04 AS python-builder
+FROM python:3.11-slim AS python-builder
 
-# 安装Python和构建依赖
+# 安装系统依赖
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-dev \
-    python3-venv \
-    python3-full \
-    build-essential \
-    cmake \
     libjpeg-dev \
     libfreetype6-dev \
     zlib1g-dev \
@@ -17,14 +10,8 @@ RUN apt-get update && apt-get install -y \
     libtiff-dev \
     libopenexr-dev \
     libwebp-dev \
-    liblapack-dev \
-    gfortran \
-    linux-headers-generic \
     && rm -rf /var/lib/apt/lists/*
 
-# 创建虚拟环境并安装依赖
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
 # 升级pip并安装依赖
 RUN pip install --upgrade pip setuptools wheel
 # 复制Python依赖文件并安装
@@ -44,23 +31,12 @@ COPY backend_api/package.json backend_api/package-lock.json ./
 RUN npm install
 
 # 第三阶段：运行镜像
-FROM node:20
+FROM node:20-slim
 
-# 安装Python运行时依赖（仅需要系统库，不安装pip）
-RUN apt-get update && apt-get install -y \
-    python3 \
-    libjpeg-dev \
-    libfreetype6-dev \
-    zlib1g-dev \
-    libpng-dev \
-    libtiff-dev \
-    libopenexr-dev \
-    libwebp-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# 从构建阶段复制预安装的Python虚拟环境
-COPY --from=python-builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# 从构建阶段复制预安装的Python环境
+COPY --from=python-builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=python-builder /usr/local/bin /usr/local/bin
+ENV PATH="/usr/local/bin:$PATH"
 
 # 从构建阶段复制Node.js依赖
 COPY --from=node-builder /app/node_modules ./backend_api/node_modules
