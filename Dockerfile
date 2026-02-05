@@ -29,10 +29,10 @@ RUN pip install "setuptools<67" wheel
 
 # 复制Python依赖文件并预安装（构建wheel缓存）
 COPY processing_service/requirements.txt ./
-# 先预安装numpy到虚拟环境，避免opencv构建时下载高版本setuptools
-RUN pip install --no-cache-dir numpy==1.26.4
-# 安装所有依赖（使用预编译wheel）
-RUN pip install --no-cache-dir -r requirements.txt
+# 预安装opencv构建所需的依赖
+RUN pip install --no-cache-dir scikit-build cmake
+# 安装所有依赖，使用--no-build-isolation避免隔离环境下载高版本setuptools
+RUN pip install --no-cache-dir --no-build-isolation -r requirements.txt
 
 # 第二阶段：构建Node.js依赖
 FROM node:20-alpine AS node-builder
