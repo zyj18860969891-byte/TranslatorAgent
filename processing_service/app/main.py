@@ -11,10 +11,10 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# 添加processing_service目录到路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# 添加/app目录到路径（Docker容器中的根目录）
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.routes import router as processing_router
+from processing_service.app.routes import router as processing_router
 from processing_service.models.task_processor import TaskProcessor
 from processing_service.config.settings import Settings
 
