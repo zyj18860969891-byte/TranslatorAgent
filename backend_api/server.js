@@ -64,7 +64,6 @@ const getCorsOrigins = () => {
   return [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'https://translator-agent-*.vercel.app',
     vercelDomainPattern
   ];
 };
@@ -88,10 +87,16 @@ app.use(cors({
           console.log(`[CORS] 字符串匹配成功: ${origin} === ${allowedOrigin}`);
           return true;
         }
-        // 通配符匹配（简单的字符串包含）
-        if (allowedOrigin.includes('*') && origin.includes(allowedOrigin.split('*')[0])) {
-          console.log(`[CORS] 通配符匹配成功: ${origin} 包含 ${allowedOrigin.split('*')[0]}`);
-          return true;
+        // 通配符匹配（支持 * 通配符）
+        if (allowedOrigin.includes('*')) {
+          // 将通配符转换为正则表达式
+          const pattern = '^' + allowedOrigin.replace(/\*/g, '.*') + '$';
+          const regex = new RegExp(pattern);
+          const matches = regex.test(origin);
+          if (matches) {
+            console.log(`[CORS] 通配符匹配成功: ${origin} ~ ${pattern}`);
+            return true;
+          }
         }
       } else if (allowedOrigin instanceof RegExp) {
         // 正则表达式匹配
