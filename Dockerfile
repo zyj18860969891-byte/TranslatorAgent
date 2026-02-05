@@ -47,7 +47,7 @@ FROM ubuntu:22.04
 # 设置非交互式环境变量，避免tzdata等包安装时的交互提示
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 安装Python和Node.js运行时
+# 安装Python和Node.js 20.x（支持现代JavaScript特性）
 RUN apt-get update && apt-get install -y \
     python3 \
     libjpeg-dev \
@@ -57,9 +57,14 @@ RUN apt-get update && apt-get install -y \
     libtiff-dev \
     libopenexr-dev \
     libwebp-dev \
-    nodejs \
-    npm \
+    curl \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
+
+# 添加NodeSource仓库并安装Node.js 20.x
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
 # 从构建阶段复制预安装的Python虚拟环境
 COPY --from=python-builder /opt/venv /opt/venv
