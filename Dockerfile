@@ -1,6 +1,9 @@
 # 第一阶段：构建Python依赖
 FROM ubuntu:22.04 AS python-builder
 
+# 设置非交互式环境变量，避免tzdata等包安装时的交互提示
+ENV DEBIAN_FRONTEND=noninteractive
+
 # 安装Python和构建依赖
 RUN apt-get update && apt-get install -y \
     python3 \
@@ -40,6 +43,9 @@ RUN npm install
 
 # 第三阶段：运行镜像
 FROM ubuntu:22.04
+
+# 设置非交互式环境变量，避免tzdata等包安装时的交互提示
+ENV DEBIAN_FRONTEND=noninteractive
 
 # 安装Python运行时依赖（仅需要系统库，不安装pip）
 RUN apt-get update && apt-get install -y \
