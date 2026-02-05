@@ -29,12 +29,21 @@ const corsOptions = {
     // 允许没有origin的请求（如移动端应用、Postman等）
     if (!origin) return callback(null, true);
     
-    // 允许的源列表 - 包括所有Vercel子域名
-    const allowedOrigins = [
+    // 从环境变量获取允许的源列表
+    const envOrigins = process.env.CORS_ORIGIN;
+    let allowedOrigins = [
       'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'https://translator-agent-*.vercel.app'
+      'http://127.0.0.1:3000'
     ];
+    
+    // 如果设置了环境变量，则使用环境变量中的源
+    if (envOrigins) {
+      const originsArray = envOrigins.split(',').map(origin => origin.trim());
+      allowedOrigins = [...allowedOrigins, ...originsArray];
+    } else {
+      // 默认包含所有Vercel子域名
+      allowedOrigins.push('https://translator-agent-*.vercel.app');
+    }
     
     // 检查是否匹配
     const isAllowed = allowedOrigins.some(allowed => {
@@ -63,33 +72,6 @@ app.options('*', cors(corsOptions));
 
 app.use(helmet()); // 安全头
 app.use(compression()); // 压缩
-// 处理 CORS 来源配置
-const getCorsOrigins = () => {
-  const envOrigins = process.env.CORS_ORIGIN;
-  // 正则表达式匹配所有translator-agent Vercel子域名
-  const vercelDomainPattern = /^https:\/\/translator-agent-.*\.vercel\.app$/;
-  
-  // 总是包含Vercel域名，确保前端可以访问
-  const defaultOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    vercelDomainPattern
-  ];
-  
-  if (envOrigins) {
-    let originsArray = [];
-    if (typeof envOrigins === 'string') {
-      originsArray = envOrigins.split(',').map(origin => origin.trim());
-    } else if (Array.isArray(envOrigins)) {
-      originsArray = envOrigins;
-    }
-    
-    // 合并环境变量中的origins和默认origins
-    return [...originsArray, ...defaultOrigins];
-  }
-  
-  return defaultOrigins;
-};
 
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
