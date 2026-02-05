@@ -33,6 +33,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 第二阶段：构建Node.js依赖
 FROM node:20-alpine AS node-builder
 
+# 设置工作目录
+WORKDIR /app
+
 # 复制Node.js依赖并安装
 COPY backend_api/package.json backend_api/package-lock.json ./
 RUN npm install
