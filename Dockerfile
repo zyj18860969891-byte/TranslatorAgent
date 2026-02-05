@@ -23,13 +23,13 @@ RUN apk add --no-cache \
     gfortran \
     && ln -sf python3 /usr/bin/python
 
+# 降级系统setuptools以兼容Python 3.12
+RUN pip install --upgrade pip
+RUN pip install "setuptools<68" wheel
+
 # 创建Python虚拟环境
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-
-# 升级pip并安装构建工具（使用与Python 3.12兼容的setuptools版本）
-RUN pip install --upgrade pip
-RUN pip install "setuptools<68" wheel
 
 # 复制Node.js后端依赖
 COPY backend_api/package.json backend_api/package-lock.json ./
