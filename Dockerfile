@@ -21,21 +21,16 @@ RUN apt-get update && apt-get install -y \
     linux-headers-generic \
     && rm -rf /var/lib/apt/lists/*
 
-# 创建虚拟环境并安装兼容的构建工具
+# 创建虚拟环境并安装依赖
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-# 使用绝对路径确保操作针对虚拟环境
-RUN /opt/venv/bin/pip install --upgrade pip
-RUN /opt/venv/bin/pip install "setuptools<67" wheel
-
-# 复制Python依赖文件并预安装（构建wheel缓存）
+# 升级pip并安装依赖
+RUN pip install --upgrade pip setuptools wheel
+# 复制Python依赖文件并安装
 COPY processing_service/requirements.txt ./
-# 验证requirements.txt存在
-RUN ls -la requirements.txt
-# 分步安装依赖，确保uvicorn等核心依赖正确安装
-RUN /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 # 验证关键依赖是否安装成功
-RUN /opt/venv/bin/python -c "import uvicorn; import fastapi; print('✓ Dependencies installed successfully')"
+RUN python -c "import uvicorn; import fastapi; print('✓ Dependencies installed successfully')"
 
 # 第二阶段：构建Node.js依赖
 FROM node:20 AS node-builder
@@ -50,9 +45,10 @@ RUN npm install
 # 第三阶段：运行镜像
 FROM node:20
 
-# 安装Python运行时依赖（仅运行时库，不包含构建工具）
+# 安装Python运行时依赖（包含pip，直接使用系统Python）
 RUN apt-get update && apt-get install -y \
     python3 \
+    python3-pip \
     libjpeg-dev \
     libfreetype6-dev \
     zlib1g-dev \
@@ -62,15 +58,15 @@ RUN apt-get update && apt-get install -y \
     libwebp-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 从构建阶段复制预安装的Python虚拟环境
-COPY --from=python-builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
 # 从构建阶段复制Node.js依赖
 COPY --from=node-builder /app/node_modules ./backend_api/node_modules
 
 # 设置工作目录
 WORKDIR /app
+
+# 复制Python依赖文件并安装到系统Python
+COPY processing_service/requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
 COPY backend_api/ ./backend_api/
