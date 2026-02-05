@@ -23,7 +23,11 @@ RUN apk add --no-cache \
     gfortran \
     && ln -sf python3 /usr/bin/python
 
-# 降级系统setuptools以兼容Python 3.12
+# 创建Python虚拟环境
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 在虚拟环境中安装兼容的构建工具
 RUN pip install --upgrade pip
 RUN pip install "setuptools<68" wheel
 
