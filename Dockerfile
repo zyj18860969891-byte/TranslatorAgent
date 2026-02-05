@@ -33,6 +33,12 @@ RUN npm install
 # 第三阶段：运行镜像
 FROM node:20-slim
 
+# 安装Python运行时
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
 # 从构建阶段复制预安装的Python环境
 COPY --from=python-builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=python-builder /usr/local/bin /usr/local/bin
