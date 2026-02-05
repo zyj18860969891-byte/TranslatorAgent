@@ -1,10 +1,7 @@
-# 使用官方Node.js 20镜像
-FROM node:20-alpine
+# 第一阶段：构建Python依赖
+FROM node:20-alpine AS python-builder
 
-# 设置工作目录
-WORKDIR /app
-
-# 安装Python和pip以及构建依赖
+# 安装Python和构建依赖
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -23,29 +20,49 @@ RUN apk add --no-cache \
     gfortran \
     && ln -sf python3 /usr/bin/python
 
-# 创建Python虚拟环境
+# 创建虚拟环境并安装兼容的构建工具
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-
-# 在虚拟环境中安装兼容的构建工具
 RUN pip install --upgrade pip
 RUN pip install "setuptools<68" wheel
 
-# 创建Python虚拟环境
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# 复制Python依赖文件并预安装（构建wheel缓存）
+COPY processing_service/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制Node.js后端依赖
+# 第二阶段：构建Node.js依赖
+FROM node:20-alpine AS node-builder
+
+# 复制Node.js依赖并安装
 COPY backend_api/package.json backend_api/package-lock.json ./
-
-# 安装Node.js依赖
 RUN npm install
 
-# 复制Python处理服务依赖
-COPY processing_service/requirements.txt ./
+# 第三阶段：运行镜像
+FROM node:20-alpine
 
-# 安装Python依赖到虚拟环境
-RUN pip install --no-cache-dir -r requirements.txt
+# 安装Python运行时依赖（仅运行时库，不包含构建工具）
+RUN apk add --no-cache \
+    python3 \
+    libjpeg-turbo \
+    freetype \
+    zlib \
+    jpeg \
+    libpng \
+    tiff \
+    jasper \
+    openexr \
+    libwebp \
+    && ln -sf python3 /usr/bin/python
+
+# 从构建阶段复制预安装的Python虚拟环境
+COPY --from=python-builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 从构建阶段复制Node.js依赖
+COPY --from=node-builder /app/node_modules ./backend_api/node_modules
+
+# 设置工作目录
+WORKDIR /app
 
 # 复制应用代码
 COPY backend_api/ ./backend_api/
