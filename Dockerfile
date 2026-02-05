@@ -24,7 +24,7 @@ RUN apk add --no-cache \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip
-RUN pip install "setuptools<68" wheel
+RUN pip install "setuptools<67" wheel
 
 # 复制Python依赖文件并预安装（构建wheel缓存）
 COPY processing_service/requirements.txt ./
