@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     libpng-dev \
     libtiff-dev \
-    libjasper-dev \
     libopenexr-dev \
     libwebp-dev \
     liblapack-dev \
@@ -57,7 +56,6 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     libpng-dev \
     libtiff-dev \
-    libjasper-dev \
     libopenexr-dev \
     libwebp-dev \
     && rm -rf /var/lib/apt/lists/*
