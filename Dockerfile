@@ -47,7 +47,7 @@ FROM ubuntu:22.04
 # 设置非交互式环境变量，避免tzdata等包安装时的交互提示
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 安装Python运行时依赖（仅需要系统库，不安装pip）
+# 安装Python和Node.js运行时
 RUN apt-get update && apt-get install -y \
     python3 \
     libjpeg-dev \
@@ -57,6 +57,8 @@ RUN apt-get update && apt-get install -y \
     libtiff-dev \
     libopenexr-dev \
     libwebp-dev \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # 从构建阶段复制预安装的Python虚拟环境
